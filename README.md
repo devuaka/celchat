@@ -5,9 +5,9 @@ moderation; DMs and group DMs; voice, video and screen sharing; polls, custom em
 animated profiles; full theming with your own fonts. No subscriptions, no paid tiers, no feature
 gates, and no company server holding your messages.
 
-**Use it:** in the browser at https://devuaka.github.io/celchat/ (installable as an app on desktop and
-phones), or download the Windows desktop app from
-[Releases](https://github.com/devuaka/celchat/releases).
+**Use it:** https://devuaka.github.io/celchat/ has two buttons: **Web** opens the app in your browser
+(installable as an app on desktop and phones, at https://devuaka.github.io/celchat/app/) and
+**Windows** downloads the desktop app (also on [Releases](https://github.com/devuaka/celchat/releases)).
 
 > **Status: working alpha.** Everything listed below is implemented and exercised by unit tests and
 > two-browser end-to-end tests (one against a local hub, one against the public brokers the website
@@ -109,7 +109,7 @@ http://127.0.0.1:8780 in another tab: a different origin gets its own storage, s
 |---|---|
 | `npm run dev` | Hub on :8781 (auto-restart) + Vite on :8780 (proxies `/ws` and `/api` to the hub); add `-- --keeper` for a local archive peer |
 | `npm run build` | Typecheck + production client build into `dist/` (uses the hub serving it) |
-| `npm run build:site` | Client that needs no server (public brokers), for static hosting |
+| `npm run build:site` | The static website in `site/`: landing page (`landing/index.html`) at the root, the serverless web app in `/app/` |
 | `npm start` | Run the hub; it also serves `dist/` |
 | `npm run keeper` | Run an archive peer (see SELF_HOSTING.md) |
 | `npm run desktop` | Build the serverless client and open it in the desktop app |

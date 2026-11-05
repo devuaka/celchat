@@ -32,8 +32,8 @@ if (!tryApi('GET', `repos/${repo}`)) {
   gh(['repo', 'create', repo, '--public', '--add-readme', '--description', 'CelChat: free, peer-to-peer community chat. Voice, video, files, deep customization. No servers required.']);
 }
 
-console.log('Building the serverless web app...');
-execSync('node scripts/build-variant.mjs serverless', { stdio: 'inherit' });
+console.log('Building the website (landing page + web app)...');
+execSync('node scripts/build-site.mjs', { stdio: 'inherit', env: { ...process.env, SITE_REPO: repo } });
 
 function walk(dir, skip) {
   const files = [];
@@ -69,12 +69,12 @@ const stamp = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
 if (process.env.SKIP_SOURCE !== '1') {
   // .github is skipped: pushing workflow files needs a token with the `workflow` scope.
-  const skipNames = new Set(['node_modules', 'dist', 'release', 'data', '.github', '.claude', '.env', '.env.local', 'test-accounts.json', '.profiles', 'artifacts']);
+  const skipNames = new Set(['node_modules', 'dist', 'site', 'release', 'data', '.github', '.claude', '.env', '.env.local', 'test-accounts.json', '.profiles', 'artifacts']);
   const src = walk('.', (n) => skipNames.has(n) || n.endsWith('.log') || n.endsWith('.tsbuildinfo') || n.endsWith('.sqlite') || n === 'identity.json');
   pushTree('main', '.', src, [], `CelChat ${version} source (${stamp})`);
 }
 
-pushTree('gh-pages', 'dist', walk('dist', () => false), [['.nojekyll', Buffer.from('')]], `Deploy CelChat ${version} (${stamp})`);
+pushTree('gh-pages', 'site', walk('site', (n) => n === '.nojekyll'), [['.nojekyll', Buffer.from('')]], `Deploy CelChat ${version} (${stamp})`);
 
 if (!tryApi('GET', `repos/${repo}/pages`)) {
   console.log('Enabling GitHub Pages from gh-pages...');

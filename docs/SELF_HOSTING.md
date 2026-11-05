@@ -7,7 +7,7 @@ reliability or extras:
 
 | Piece | Why you might want it |
 |---|---|
-| The web client (static files) | Your own copy of the website: `npm run build:site`, upload `dist/` anywhere (GitHub Pages, Netlify, any web server). Relative paths, works under any sub-path. |
+| The web client (static files) | Your own copy of the website: `npm run build:site`, upload `site/` anywhere (GitHub Pages, Netlify, any web server): landing page at the root, the app in `app/`. Or upload just `dist/` from `node scripts/build-variant.mjs serverless` for the bare app. Relative paths, works under any sub-path. |
 | A hub | A username directory you control, avatar cache, faster encrypted relay, TURN credentials, GIF search with your key. People on your hub only meet each other. |
 | An archive peer | Keeps your communities readable while everyone is offline. |
 | TURN (coturn) | Calls for people behind strict NATs. |

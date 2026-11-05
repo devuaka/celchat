@@ -24,7 +24,7 @@
   "scripts": {
     "desktop": "node scripts/build-variant.mjs serverless && electron .",
     "dist:desktop": "node scripts/build-variant.mjs serverless && electron-builder --win",
-    "build:site": "node scripts/build-variant.mjs serverless",
+    "build:site": "node scripts/build-site.mjs",
     "publish": "node scripts/publish.mjs",
     "test:serverless": "node tests/e2e/serverless.mjs",
     "test:desktop": "node tests/e2e/desktop-smoke.mjs",
