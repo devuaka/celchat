@@ -285,7 +285,8 @@ const __cel = (() => {
     },
     setStatus: (text, emoji) => call('status', text == null ? null : String(text), emoji == null ? null : String(emoji)),
     storage: {
-      get: (key, fallback) => call('storage', 'get', String(key)).then((v) => (v === undefined ? fallback : v)),
+      // missing keys come back as null over postMessage, so null means "not set" too
+      get: (key, fallback) => call('storage', 'get', String(key)).then((v) => (v === undefined || v === null ? fallback : v)),
       set: (key, value) => call('storage', 'set', String(key), value),
       delete: (key) => call('storage', 'delete', String(key)),
       keys: () => call('storage', 'keys'),

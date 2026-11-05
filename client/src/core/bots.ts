@@ -388,7 +388,8 @@ export class BotHost {
   }
 
   async importBot(f: BotFileExport, keepIdentity: boolean) {
-    const avatar = f.avatar ? await (await fetch(f.avatar)).blob() : null;
+    // decoded by hand: fetch('data:...') is blocked by the production CSP (connect-src * excludes data:)
+    const avatar = f.avatar ? dataUrlToBlob(f.avatar) : null;
     if (keepIdentity && f.identity && this.records.has(f.identity.pub)) {
       await this.update(f.identity.pub, { code: f.code, network: f.network, name: f.name, about: f.about });
       return f.identity.pub;
@@ -1489,6 +1490,16 @@ function randomAlnum(n: number) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
   const bytes = crypto.getRandomValues(new Uint8Array(n));
   return [...bytes].map((b) => chars[b % chars.length]).join('');
+}
+
+function dataUrlToBlob(url: string): Blob | null {
+  const m = /^data:(image\/[a-z0-9.+-]+);base64,([A-Za-z0-9+/=\s]+)$/i.exec(url);
+  if (!m) return null;
+  try {
+    return new Blob([fromB64(m[2].replace(/\s+/g, '')) as BlobPart], { type: m[1].toLowerCase() });
+  } catch {
+    return null;
+  }
 }
 
 function blobToDataUrl(blob: Blob): Promise<string> {

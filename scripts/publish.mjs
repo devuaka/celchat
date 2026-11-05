@@ -7,6 +7,7 @@
 import { execFileSync, execSync } from 'node:child_process';
 import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { join, relative, sep } from 'node:path';
+import { createHash } from 'node:crypto';
 
 const gh = (args, input) => execFileSync('gh', args, { input, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, stdio: ['pipe', 'pipe', 'pipe'] });
 const api = (method, path, body) => {
@@ -19,8 +20,11 @@ const apiRetry = (method, path, body) => {
     try {
       return api(method, path, body);
     } catch (e) {
-      if (i >= 4) throw e;
-      execSync(process.platform === 'win32' ? `ping -n ${2 + i * 2} 127.0.0.1 > nul` : `sleep ${1 + i * 2}`);
+      if (i >= 5) throw e;
+      // back off harder each time: GitHub's secondary rate limit on writes needs ~a minute to clear
+      const secs = [3, 8, 15, 30, 60][i];
+      process.stdout.write(`\n  (GitHub refused a request, retrying in ${secs}s: ${String(e.stderr || e.message).split('\n')[0].slice(0, 120)})\n`);
+      execSync(process.platform === 'win32' ? `ping -n ${secs + 1} 127.0.0.1 > nul` : `sleep ${secs}`);
     }
   }
 };
@@ -57,18 +61,31 @@ function walk(dir, skip) {
   return files;
 }
 
+/** git's blob id for some bytes: unchanged files are already on GitHub and need no upload. */
+const gitSha = (buf) => createHash('sha1').update(Buffer.concat([Buffer.from(`blob ${buf.length}\0`), buf])).digest('hex');
+
 function pushTree(branch, root, files, extra, message) {
   const tree = [];
   const all = [...files.map((f) => [relative(root, f).split(sep).join('/'), readFileSync(f)]), ...extra];
-  let i = 0;
-  for (const [path, buf] of all) {
-    const blob = apiRetry('POST', `repos/${repo}/git/blobs`, { content: buf.toString('base64'), encoding: 'base64' });
-    tree.push({ path, mode: '100644', type: 'blob', sha: blob.sha });
-    process.stdout.write(`\r  ${branch}: uploaded ${++i}/${all.length}`);
-  }
-  process.stdout.write('\n');
-  const t = api('POST', `repos/${repo}/git/trees`, { tree });
   const ref = tryApi('GET', `repos/${repo}/git/ref/heads/${branch}`);
+  const have = new Set();
+  if (ref) {
+    const head = tryApi('GET', `repos/${repo}/git/commits/${ref.object.sha}`);
+    const old = head && tryApi('GET', `repos/${repo}/git/trees/${head.tree.sha}?recursive=1`);
+    for (const e of old?.tree ?? []) if (e.type === 'blob') have.add(e.sha);
+  }
+  let sent = 0;
+  for (const [path, buf] of all) {
+    let sha = gitSha(buf);
+    if (!have.has(sha)) {
+      sha = apiRetry('POST', `repos/${repo}/git/blobs`, { content: buf.toString('base64'), encoding: 'base64' }).sha;
+      sent++;
+      process.stdout.write(`\r  ${branch}: uploaded ${sent} changed file${sent === 1 ? '' : 's'}`);
+    }
+    tree.push({ path, mode: '100644', type: 'blob', sha });
+  }
+  process.stdout.write(`\r  ${branch}: ${sent} changed of ${all.length} files\n`);
+  const t = apiRetry('POST', `repos/${repo}/git/trees`, { tree });
   const parents = ref ? [ref.object.sha] : [];
   const commit = api('POST', `repos/${repo}/git/commits`, { message, tree: t.sha, parents });
   if (ref) api('PATCH', `repos/${repo}/git/refs/heads/${branch}`, { sha: commit.sha, force: true });
