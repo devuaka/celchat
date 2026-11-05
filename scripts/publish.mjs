@@ -78,7 +78,8 @@ pushTree('gh-pages', 'dist', walk('dist', () => false), [['.nojekyll', Buffer.fr
 
 if (!tryApi('GET', `repos/${repo}/pages`)) {
   console.log('Enabling GitHub Pages from gh-pages...');
-  api('POST', `repos/${repo}/pages`, { source: { branch: 'gh-pages', path: '/' } });
+  // GitHub often enables Pages by itself when a gh-pages branch appears (then this returns 409).
+  tryApi('POST', `repos/${repo}/pages`, { source: { branch: 'gh-pages', path: '/' } });
 }
 const pages = tryApi('GET', `repos/${repo}/pages`);
 const site = pages?.html_url || `https://${user}.github.io/${name}/`;
