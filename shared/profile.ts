@@ -7,6 +7,27 @@ const zColor = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 
 export const USERNAME_RE = /^[a-z0-9_.]{2,32}$/;
 
+export const COMMAND_NAME_RE = /^[a-z0-9_-]{1,32}$/;
+export const ARG_TYPES = ['text', 'word', 'number', 'integer', 'user', 'channel', 'role', 'boolean'] as const;
+export const zCommandArg = z
+  .object({
+    name: z.string().regex(COMMAND_NAME_RE),
+    type: z.enum(ARG_TYPES),
+    desc: z.string().max(100).optional(),
+    optional: z.boolean().optional(),
+    choices: z.array(z.string().min(1).max(50)).max(25).optional(),
+  })
+  .strict();
+export const zCommand = z
+  .object({
+    name: z.string().regex(COMMAND_NAME_RE),
+    desc: z.string().max(100),
+    args: z.array(zCommandArg).max(10).optional(),
+  })
+  .strict();
+export type BotCommand = z.infer<typeof zCommand>;
+export type BotCommandArg = z.infer<typeof zCommandArg>;
+
 export const zProfile = z.object({
   v: z.literal(1),
   pub: zPub,
@@ -29,8 +50,18 @@ export const zProfile = z.object({
     .nullable(),
   createdAt: z.number().int().min(0),
   updatedAt: z.number().int().min(0),
-  /** an automated always-on archive peer, not a person */
+  /** an automated account (archive peer or bot), not a person */
   bot: z.boolean().optional(),
+  /** what kind of automated account; absent on a bot card = archive peer */
+  botInfo: z
+    .object({
+      kind: z.enum(['archive', 'app']),
+      /** runs inside a member's CelChat (no network presence of its own) */
+      hosted: z.boolean().optional(),
+      commands: z.array(zCommand).max(LIMITS.botCommands).optional(),
+    })
+    .strict()
+    .optional(),
   sig: z.string().regex(/^[0-9a-f]{128}$/),
 });
 
@@ -63,5 +94,13 @@ export function defaultProfile(username: string, createdAt: number): ProfileDraf
   };
 }
 
-export const displayNameOf = (p: Pick<ProfileCard, 'displayName' | 'username'> | null | undefined, fallback = 'Unknown') =>
+type BotFields = Pick<ProfileCard, 'bot' | 'botInfo'> | null | undefined;
+/** always-on archive peer (keeps history) */
+export const isArchivePeer = (p: BotFields) => !!p?.bot && (p.botInfo?.kind ?? 'archive') === 'archive';
+/** a bot account that responds to commands */
+export const isAppBot = (p: BotFields) => !!p?.bot && p.botInfo?.kind === 'app';
+/** headless automated peers that are only reachable through the encrypted relay */
+export const isRelayOnly = (p: BotFields) => !!p?.bot && !p.botInfo?.hosted;
+
+export const displayNameOf =(p: Pick<ProfileCard, 'displayName' | 'username'> | null | undefined, fallback = 'Unknown') =>
   p ? p.displayName.trim() || p.username : fallback;

@@ -311,6 +311,39 @@ async function main() {
     await until(B, ([cc, chh]) => window.__cel.app().convos.loadChannel(cc, chh).then((r) => r.messages.some((m) => m.text === 'from the future')), [c, ch], 20000, 'scheduled message on B');
   });
 
+  await check('bots: a sandboxed bot on A answers B (command, embed, button, typed args)', async () => {
+    const botPub = await A.evaluate(async (cc) => {
+      const a = window.__cel.app();
+      const code = [
+        "bot.command('ping', 'Pong', async (ctx) => {",
+        "  await ctx.reply({ text: 'pong for ' + ctx.author.name, embeds: [{ title: 'Latency', description: 'fine', color: '#5fd3b3' }], buttons: [{ id: 'again', label: 'Again', style: 'primary' }] });",
+        '});',
+        "bot.button('again', async (press) => { await press.update({ text: 'pressed by ' + press.user.name }); });",
+        "bot.command('add', 'Add numbers', ['a:number', 'b:number'], async (ctx, { a, b }) => ctx.reply('sum ' + (a + b)));",
+        "bot.on('message', (m) => { if (m.text === 'net?') fetch('http://localhost:8791/api/info').then(() => m.reply('NET OPEN'), () => m.reply('no network')); });",
+      ].join('\n');
+      const pub = await a.bots.create({ name: 'E2E Bot', username: 'e2ebot', code, network: false });
+      await a.bots.setEnabled(pub, true);
+      await a.bots.addToCommunity(pub, cc);
+      return pub;
+    }, c);
+    await until(B, ([cc, bp]) => !!window.__cel.store.getState().states[cc]?.members[bp] && window.__cel.store.getState().profiles[bp]?.botInfo?.commands?.length === 2, [c, botPub], 20000, 'B sees the bot and its commands');
+    await until(B, (bp) => window.__cel.store.getState().presence[bp] === 'online', botPub, 20000, 'bot shown online to B');
+    await B.evaluate(([cc, chh]) => window.__cel.app().sendMessage(cc, chh, '/ping', []), [c, ch]);
+    const replyId = await until(B, ([cc, chh, bp]) => window.__cel.app().convos.loadChannel(cc, chh).then((r) => r.messages.find((m) => m.a === bp && m.text.startsWith('pong for'))?.id ?? null), [c, ch, botPub], 20000, 'bot reply on B');
+    await B.evaluate(([cc, mid]) => window.__cel.app().interact(cc, mid, 'again'), [c, replyId]);
+    await until(B, ([cc, mid]) => window.__cel.app().convos.getMessage(cc, mid).then((m) => !!m && m.text.startsWith('pressed by') && m.buttons.length === 1 && m.embeds.length === 1), [c, replyId], 20000, 'button press handled');
+    await B.evaluate(([cc, chh]) => window.__cel.app().sendMessage(cc, chh, '/add 2 40', []), [c, ch]);
+    await until(B, ([cc, chh, bp]) => window.__cel.app().convos.loadChannel(cc, chh).then((r) => r.messages.some((m) => m.a === bp && m.text === 'sum 42')), [c, ch, botPub], 20000, 'typed arguments');
+    await B.evaluate(([cc, chh]) => window.__cel.app().sendMessage(cc, chh, 'net?', []), [c, ch]);
+    const net = await until(B, ([cc, chh, bp]) => window.__cel.app().convos.loadChannel(cc, chh).then((r) => r.messages.find((m) => m.a === bp && /network|NET OPEN/.test(m.text))?.text ?? null), [c, ch, botPub], 20000, 'sandbox network answer');
+    if (net !== 'no network') throw new Error('the sandbox let a bot without permission reach the network');
+    await B.evaluate(([cc, chh]) => window.__cel.app().navigate({ kind: 'community', c: cc, ch: chh }), [c, ch]);
+    await B.locator('.embed .embed-title', { hasText: 'Latency' }).first().waitFor({ timeout: 10000 });
+    await B.locator('.msg-buttons .mbtn', { hasText: 'Again' }).first().waitFor({ timeout: 10000 });
+    await B.locator('.bot-badge.app').first().waitFor({ timeout: 10000 });
+  });
+
   await check('DM survives the recipient being offline (sealed mailbox)', async () => {
     const dc = await A.evaluate(() => Object.values(window.__cel.store.getState().convos).find((x) => x.type === 'dm').c);
     await B.goto('about:blank');

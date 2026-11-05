@@ -32,6 +32,8 @@ type Events = {
   receipt: [string, string, number];
   friends: [string, string[]];
   accepted: [StoredOp[], PeerConn];
+  /** the peer says it runs these bots (signed by each bot's key) */
+  bothost: [PeerConn, unknown[]];
 };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -195,6 +197,10 @@ export class Sync extends Emitter<Events> {
         this.emit('eph', e, l);
         const hops = Number(m.hops ?? 0);
         if (hops < 2) this.forwardEph(e, hops + 1, l.addr);
+        return;
+      }
+      case 'bothost': {
+        if (Array.isArray(m.list)) this.emit('bothost', l, m.list.slice(0, 50));
         return;
       }
       case 'prof': {

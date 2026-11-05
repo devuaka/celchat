@@ -4,6 +4,7 @@ import { app } from '../../core/app';
 import { Avatar, I, UserName, cls, copy, fmtTime, fmtStamp, confirmDialog } from '../common';
 import { Markdown, isJumbo, ReactionGlyph } from '../markdown';
 import { Attachments } from './Attachments';
+import { Embeds, MessageButtons } from './RichContent';
 import { EmojiPicker } from './EmojiPicker';
 import { channelPerms, memberColor, type ConvoState, type Message } from '@shared/engine';
 import { P } from '@shared/perms';
@@ -86,6 +87,9 @@ export const MessageItem = memo(function MessageItem({ m, grouped, st, pings }: 
     ]);
 
   const time = fmtTime(m.t, clock24);
+  // images shown inside an embed are not listed again as attachments
+  const embedded = m.embeds.length ? new Set(m.embeds.flatMap((e) => [e.image?.hash, e.thumb?.hash])) : null;
+  const visibleAtt = embedded ? m.att.filter((a) => !embedded.has(a.hash)) : m.att;
   return (
     <div
       ref={ref}
@@ -93,7 +97,7 @@ export const MessageItem = memo(function MessageItem({ m, grouped, st, pings }: 
       onContextMenu={menu}
       onClick={(e) => {
         // touch screens: tap a message to reveal its actions
-        if (!matchMedia('(hover: none)').matches || (e.target as HTMLElement).closest('a,button,img,video,input,textarea,.poll')) return;
+        if (!matchMedia('(hover: none)').matches || (e.target as HTMLElement).closest('a,button,img,video,input,textarea,.poll,.msg-buttons')) return;
         setSel(!sel);
       }}
       onDoubleClick={(e) => {
@@ -139,7 +143,9 @@ export const MessageItem = memo(function MessageItem({ m, grouped, st, pings }: 
                 </div>
               )}
               {m.poll && <PollView m={m} canVote={canReact} />}
-              {m.att.length > 0 && <Attachments att={m.att} c={c} author={m.a} />}
+              {m.embeds.length > 0 && <Embeds embeds={m.embeds} c={c} author={m.a} />}
+              {visibleAtt.length > 0 && <Attachments att={visibleAtt} c={c} author={m.a} />}
+              {m.buttons.length > 0 && <MessageButtons buttons={m.buttons} disabled={!canReact && !canSend} onPress={(b) => app().interact(c, m.id, b.id)} />}
             </>
           )}
           {Object.keys(m.reacts).length > 0 && (

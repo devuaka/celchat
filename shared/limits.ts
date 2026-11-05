@@ -19,6 +19,10 @@ export const LIMITS = {
   emojiChars: 120,
   maxEmoji: 250,
   emojiBytes: 512 * 1024,
+  embedChars: 4096,
+  embedsPerMessage: 5,
+  buttonsPerMessage: 15,
+  botCommands: 50,
   /** Defaults a client applies to files it accepts from peers (user-configurable). */
   fileMaxBytes: 500 * 1024 * 1024,
   avatarMaxBytes: 8 * 1024 * 1024,

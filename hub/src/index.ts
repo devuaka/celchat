@@ -15,6 +15,7 @@ import { verify, sha256Hex } from '@shared/crypto';
 import { isHex, fromB64 } from '@shared/bytes';
 import { verifyProfile } from '@shared/profile';
 import { gifUrl, normalizeGifs, isGifMediaHost, GIF_MAX_SEND_BYTES } from '@shared/gifs';
+import { SANDBOX_SCRIPT_HASH } from '@shared/botSandbox';
 import { authMessage, assetAuthMessage, sniffImage, type ClientToHub, type HubInfo, type HubToClient, type IceServer, type Presence, type TopicPeer } from '@shared/protocol';
 
 const VERSION = '0.1.0';
@@ -311,7 +312,8 @@ const SECURITY_HEADERS = {
 
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' 'wasm-unsafe-eval'",
+  // the hash allows the bot sandbox's inline script (srcdoc frames inherit this policy)
+  `script-src 'self' 'wasm-unsafe-eval' '${SANDBOX_SCRIPT_HASH}'`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' blob: data:",
   "media-src 'self' blob: data:",

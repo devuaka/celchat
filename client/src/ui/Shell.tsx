@@ -17,6 +17,7 @@ import { stopRinging } from '../core/notify';
 import { Lightbox } from './chat/Attachments';
 import { VoiceStage } from './voice/Stage';
 import { HistoryModal, PollModal, ScheduleModal, ShortcutsModal, WelcomeModal } from './extras';
+import { BotEditorModal, ImportBotModal } from './bots/BotStudio';
 import { sortedChannels, type Message } from '@shared/engine';
 
 export function Shell() {
@@ -225,6 +226,10 @@ function ModalSwitch({ kind, props }: { kind: string; props: Record<string, unkn
       return <WelcomeModal />;
     case 'folder':
       return <FolderModal id={props.id as string} />;
+    case 'bot':
+      return <BotEditorModal key={props.pub as string} pub={props.pub as string} tab={props.tab as string | undefined} />;
+    case 'import-bot':
+      return <ImportBotModal file={props.file as Parameters<typeof ImportBotModal>[0]['file']} />;
     case 'confirm':
       return <Confirm {...(props as unknown as ConfirmProps)} />;
   }

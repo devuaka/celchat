@@ -8,6 +8,7 @@ import { FONTS } from '../../core/theme';
 import { P, PERM_INFO, type PermName } from '@shared/perms';
 import { sortedRoles, highestPos, basePerms, memberColor, type CommunityState, type Role } from '@shared/engine';
 import { memberMenu } from '../members/MemberList';
+import { isAppBot, isArchivePeer } from '@shared/profile';
 
 type Tab = 'overview' | 'theme' | 'emoji' | 'roles' | 'members' | 'bans' | 'invites' | 'archive' | 'danger';
 
@@ -26,7 +27,7 @@ export function CommunitySettings({ c, initial }: { c: string; initial?: string 
     { id: 'members', label: 'Members', show: true },
     { id: 'bans', label: 'Bans', show: can(P.BAN) },
     { id: 'invites', label: 'Invites', show: can(P.CREATE_INVITE) || can(P.MANAGE_COMMUNITY) },
-    { id: 'archive', label: 'Archive peers', show: true },
+    { id: 'archive', label: 'Bots & archive peers', show: true },
     { id: 'danger', label: st.owner === me ? 'Ownership' : 'Leave', show: true },
   ];
   return (
@@ -564,16 +565,117 @@ function EmojiTab({ c, st, canManage }: { c: string; st: CommunityState; canMana
   );
 }
 
+function CommunityBots({ c, st, canInvite, canKick }: { c: string; st: CommunityState; canInvite: boolean; canKick: boolean }) {
+  const profiles = useStore((s) => s.profiles);
+  const presence = useStore((s) => s.presence);
+  const mine = useStore((s) => s.bots);
+  const [busy, setBusy] = useState<string | null>(null);
+  const here = Object.values(st.members).filter((m) => isAppBot(profiles[m.pub]));
+  const addable = mine.filter((b) => !st.members[b.pub]);
+  return (
+    <>
+      <h2>Bots</h2>
+      <p className="muted">
+        Bots are automated members that answer commands, post embeds and buttons, welcome people, moderate and more. Each one runs inside the CelChat of the member who made it, so it is online while
+        they are. Every peer checks a bot&rsquo;s actions against its roles, exactly like a person&rsquo;s.
+      </p>
+      <div className="field-label mt">In this community · {here.length}</div>
+      {!here.length && <p className="muted small">No bots yet.</p>}
+      {here.map((m) => {
+        const card = profiles[m.pub];
+        const own = mine.some((b) => b.pub === m.pub);
+        const on = presence[m.pub] && presence[m.pub] !== 'invisible';
+        return (
+          <div key={m.pub} className="archive-card">
+            <Avatar pub={m.pub} size={36} status />
+            <span className="archive-info">
+              <span>
+                <UserName pub={m.pub} c={c} />
+              </span>
+              <span className="muted small">
+                {on ? 'Online' : 'Offline'} · {card?.botInfo?.commands?.length ?? 0} commands{own ? ' · yours' : ''}
+              </span>
+            </span>
+            {own ? (
+              <Button small kind="ghost" busy={busy === m.pub} onClick={async () => {
+                setBusy(m.pub);
+                try {
+                  await app().bots.removeFromCommunity(m.pub, c);
+                } catch (e) {
+                  toast((e as Error).message, 'error');
+                } finally {
+                  setBusy(null);
+                }
+              }}>
+                Remove
+              </Button>
+            ) : (
+              canKick && (
+                <Button small kind="danger" onClick={() => void app().kick(c, m.pub, 'bot removed').catch((e) => toast(e.message, 'error'))}>
+                  Kick
+                </Button>
+              )
+            )}
+          </div>
+        );
+      })}
+      <div className="field-label mt">Your bots</div>
+      {!mine.length && (
+        <p className="muted small">
+          You have no bots yet.{' '}
+          <button type="button" className="link" onClick={() => openModal('settings', { tab: 'bots' })}>
+            Create or import one
+          </button>
+          .
+        </p>
+      )}
+      {addable.map((b) => (
+        <div key={b.pub} className="archive-card">
+          <Avatar pub={b.pub} size={36} />
+          <span className="archive-info">
+            <span>{b.name}</span>
+            <span className="muted small">
+              @{b.username} · {b.commands.length} commands · {b.status === 'running' ? 'running' : 'not running'}
+            </span>
+          </span>
+          <Button
+            small
+            disabled={!canInvite}
+            title={canInvite ? undefined : 'You need the Create invites permission'}
+            busy={busy === b.pub}
+            onClick={async () => {
+              setBusy(b.pub);
+              try {
+                await app().bots.addToCommunity(b.pub, c);
+                if (b.status !== 'running') await app().bots.setEnabled(b.pub, true);
+                toast(`${b.name} joined ${st.name}`, 'success');
+              } catch (e) {
+                toast((e as Error).message, 'error');
+              } finally {
+                setBusy(null);
+              }
+            }}
+          >
+            Add
+          </Button>
+        </div>
+      ))}
+      {mine.length > 0 && !addable.length && <p className="muted small">All your bots are already here.</p>}
+    </>
+  );
+}
+
 function ArchiveTab({ c, st, canInvite, canKick }: { c: string; st: CommunityState; canInvite: boolean; canKick: boolean }) {
   const profiles = useStore((s) => s.profiles);
   const presence = useStore((s) => s.presence);
   const [q, setQ] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
-  const bots = Object.values(st.members).filter((m) => profiles[m.pub]?.bot);
+  const bots = Object.values(st.members).filter((m) => isArchivePeer(profiles[m.pub]));
   return (
     <div className="settings-page">
-      <h2>Archive peers</h2>
+      <CommunityBots c={c} st={st} canInvite={canInvite || st.joinPolicy === 'open'} canKick={canKick} />
+      <h2 className="mt-lg">Archive peers</h2>
       <p className="muted">
         CelChat communities live on their members&rsquo; devices, so when everyone is offline nobody can sync. An archive peer is an always-on member (a small program someone runs on a server or a spare
         computer) that keeps the full history and attachments and hands them to members and invite holders whenever they come online.

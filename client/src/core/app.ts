@@ -20,7 +20,9 @@ import { signOut, updateAccountLabel, type Session } from './identity';
 import { set, get, chanKey, toast, type View, type CallInfo, type Bookmark, type Scheduled } from '../state/store';
 import { aesDecrypt, aesEncrypt, pairKey, sealSigned, sha256Bytes, sha256Hex, sign, unsealSigned, type Keys } from '@shared/crypto';
 import { bytesToHex, concatBytes, fromB64, isHex, randomHex, toB64, utf8ToBytes, bytesToUtf8 } from '@shared/bytes';
-import { signProfile, verifyProfile, defaultProfile, type ProfileCard, type ProfileDraft } from '@shared/profile';
+import { signProfile, verifyProfile, defaultProfile, isRelayOnly, type ProfileCard, type ProfileDraft } from '@shared/profile';
+import { BotHost, verifyHostClaim } from './bots';
+import type { PeerConn } from './peers';
 import { dmId, type Attachment, type AssetRef, type Op } from '@shared/ops';
 import { channelPerms, parseMentions, type CommunityState, type Message, type GroupState } from '@shared/engine';
 import { P } from '@shared/perms';
@@ -74,6 +76,10 @@ export class CelApp {
   private callTimeout: ReturnType<typeof setTimeout> | null = null;
   private callHadPeer = false;
   private pendingReceipts = new Map<string, number>();
+  bots!: BotHost;
+  /** bot -> addresses of peers that say they run it (signed by the bot) -> expiry */
+  private botHosts = new Map<string, Map<string, number>>();
+  private lastAnnounce = 0;
 
   constructor(readonly session: Session) {
     this.keys = session.keys;
@@ -157,6 +163,12 @@ export class CelApp {
       bookmarks: ((await this.db.get('kv', 'bookmarks'))?.v as Bookmark[] | undefined) ?? [],
       scheduled: ((await this.db.get('kv', 'scheduled'))?.v as Scheduled[] | undefined) ?? [],
     });
+    this.bots = new BotHost(this);
+    try {
+      await this.bots.load();
+    } catch (e) {
+      console.error('[bots] failed to load', e); // never let a bot keep CelChat from starting
+    }
     this.refreshTopics();
     this.hub.connect();
     void this.computeUnread();
@@ -168,6 +180,7 @@ export class CelApp {
 
   dispose() {
     for (const t of this.timers) clearInterval(t);
+    this.bots?.dispose();
     this.voice?.leave();
     this.peers?.closeAll();
     this.hub?.close();
@@ -187,11 +200,41 @@ export class CelApp {
     this.peers.accept = (pub) => this.friends.get(pub)?.state !== 'blocked';
     this.peers.isFriend = (pub) => pub === this.me || this.friends.get(pub)?.state === 'friend';
     this.peers.knows = (pub) => this.knows(pub);
-    this.peers.relayOnlyKey = (pub) => this.profiles.get(pub)?.bot === true;
+    this.peers.relayOnlyKey = (pub) => isRelayOnly(this.profiles.get(pub));
   }
 
+  /** Headless automated peers (archive peers) that are only reachable through the relay. */
   isBot(pub: string) {
-    return this.profiles.get(pub)?.bot === true;
+    return isRelayOnly(this.profiles.get(pub));
+  }
+
+  /** A card this device signs itself (its bots). */
+  setLocalProfile(card: ProfileCard) {
+    this.profiles.set(card.pub, card);
+    void this.db.put('profiles', { ...card, seenAt: Date.now() });
+    set((s) => ({ profiles: { ...s.profiles, [card.pub]: card } }));
+  }
+
+  refreshPresence() {
+    this.schedulePresence();
+  }
+
+  private onBotHost(l: PeerConn, list: unknown[]) {
+    for (const raw of list) {
+      const claim = verifyHostClaim(raw, l.pub);
+      if (!claim) continue;
+      if (!this.bots.isMine(claim.card.pub)) this.upsertProfile(claim.card);
+      let m = this.botHosts.get(claim.card.pub);
+      if (!m) this.botHosts.set(claim.card.pub, (m = new Map()));
+      if (claim.on) m.set(l.addr, Date.now() + 10 * 60_000);
+      else m.delete(l.addr);
+    }
+    this.schedulePresence();
+  }
+
+  /** Press a button on a (bot) message. Whoever runs that bot reacts to it. */
+  interact(c: string, id: string, b: string) {
+    return this.author(c, 'interact', { id, b });
   }
 
   /** Someone we share a conversation (or a community topic) with. */
@@ -246,9 +289,12 @@ export class CelApp {
     });
 
     peers.on('open', () => this.scheduleLinks());
-    peers.on('close', () => {
+    peers.on('close', (l) => {
       this.scheduleLinks();
       this.scheduleDesires();
+      let changed = false;
+      for (const m of this.botHosts.values()) if (m.delete(l.addr)) changed = true;
+      if (changed) this.schedulePresence();
     });
     peers.on('state', () => this.scheduleLinks());
     peers.on('app', (from, d) => this.onAppSignal(from, d));
@@ -267,7 +313,9 @@ export class CelApp {
           this.pendingReceipts.delete(c);
         }
       }
+      this.bots?.announceTo(l);
     });
+    sync.on('bothost', (l, list) => this.onBotHost(l, list));
     sync.on('profile', (card) => this.upsertProfile(card));
     sync.on('eph', (e) => this.onEph(e));
     sync.on('receipt', (c, pub, l) => {
@@ -325,6 +373,11 @@ export class CelApp {
 
   private tick() {
     void this.runTimers();
+    if (Date.now() - this.lastAnnounce > 4 * 60_000) {
+      this.lastAnnounce = Date.now();
+      this.bots?.scheduleAnnounce();
+      for (const m of this.botHosts.values()) for (const [addr, exp] of m) if (exp < Date.now()) m.delete(addr);
+    }
     // expire typing + stale voice presence
     const now = Date.now();
     const s = get();
@@ -457,6 +510,12 @@ export class CelApp {
         }
       }
       out[this.me] = this.settings.status;
+      // bots run inside a member's app: online while a peer we are linked to runs them
+      const now = Date.now();
+      for (const [bot, hosts] of this.botHosts) {
+        for (const [addr, exp] of hosts) if (exp > now && this.peers.links.get(addr)?.usable) out[bot] = 'online';
+      }
+      for (const bot of this.bots?.runningPubs() ?? []) out[bot] = 'online';
       set({ presence: out });
     }, 150);
   }
@@ -676,6 +735,7 @@ export class CelApp {
     if (!x) return;
     const s = get();
     const targets = new Set<string>();
+    this.bots?.onOps(c, ops);
     for (const op of ops) {
       if (op.k === 'msg') await this.onNewMessage(c, op);
       else if (op.tgt) targets.add(op.tgt);
@@ -1010,6 +1070,17 @@ export class CelApp {
       if (!(perms & P.SEND)) throw new Error('You do not have permission to send messages here.');
       if (files.length && !(perms & P.ATTACH)) throw new Error('You do not have permission to attach files here.');
     }
+    const att = await this.attachmentsFrom(files, spoilers);
+    const p: Record<string, unknown> = { ch, text: text.slice(0, LIMITS.messageChars) };
+    if (replyTo) p.reply = replyTo;
+    if (att.length) p.att = att;
+    const op = await this.author(c, 'msg', p);
+    if (x.rec.type === 'dm' && x.rec.peer) this.touchFriend(x.rec.peer);
+    return op;
+  }
+
+  /** Store files locally (peers fetch them from us) and describe them as attachments. */
+  async attachmentsFrom(files: File[], spoilers: boolean[] = []): Promise<Attachment[]> {
     const att: Attachment[] = [];
     for (const f of files.slice(0, LIMITS.attachmentsPerMessage)) {
       if (f.size > this.settings.media.maxFileMB * 1024 * 1024) throw new Error(`${f.name} is larger than your ${this.settings.media.maxFileMB} MB file limit.`);
@@ -1030,12 +1101,7 @@ export class CelApp {
       att.push(a);
       void this.publishUrl(ref.hash);
     }
-    const p: Record<string, unknown> = { ch, text: text.slice(0, LIMITS.messageChars) };
-    if (replyTo) p.reply = replyTo;
-    if (att.length) p.att = att;
-    const op = await this.author(c, 'msg', p);
-    if (x.rec.type === 'dm' && x.rec.peer) this.touchFriend(x.rec.peer);
-    return op;
+    return att;
   }
 
   // ---- GIF search (KLIPY / GIPHY / any Tenor-v2-compatible API) ------------------
@@ -1357,7 +1423,7 @@ export class CelApp {
   async addArchivePeer(c: string, query: string) {
     const pub = await this.resolveUser(query);
     const card = this.profiles.get(pub);
-    if (!card?.bot) throw new Error(`${this.nameOf(pub)} is not an archive peer (its profile is not marked as one).`);
+    if (!isRelayOnly(card)) throw new Error(`${this.nameOf(pub)} is not an archive peer (its profile is not marked as one).`);
     const st = this.convos.community(c);
     if (st?.members[pub]) throw new Error('That archive peer is already a member.');
     const link = await this.createInvite(c, 7 * 86400, 1);

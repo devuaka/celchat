@@ -10,6 +10,8 @@ import { channelPerms, isTimedOut, type ConvoState } from '@shared/engine';
 import { P } from '@shared/perms';
 import { LIMITS } from '@shared/limits';
 import type { Attachment } from '@shared/ops';
+import { isAppBot, type BotCommand } from '@shared/profile';
+import { commandUsage } from '../../core/bots';
 
 interface Suggestion {
   key: string;
@@ -76,8 +78,51 @@ export function Composer({ c, ch, st, files, setFiles, placeholder }: { c: strin
     return Object.keys(st.members);
   }, [st]);
 
+  // commands of the bots in this community (from their signed profile cards)
+  const profiles = useStore((s) => s.profiles);
+  const botCommands = useMemo(() => {
+    if (st?.kind !== 'community') return [];
+    const out: (BotCommand & { bot: string; username: string; dup: boolean })[] = [];
+    for (const pub of Object.keys(st.members)) {
+      const card = profiles[pub];
+      if (!isAppBot(card)) continue;
+      for (const cmd of card!.botInfo?.commands ?? []) out.push({ ...cmd, bot: pub, username: card!.username, dup: false });
+    }
+    const count = new Map<string, number>();
+    for (const x of out) count.set(x.name, (count.get(x.name) ?? 0) + 1);
+    for (const x of out) x.dup = (count.get(x.name) ?? 0) > 1;
+    return out.sort((a, b) => a.name.localeCompare(b.name));
+  }, [st, profiles]);
+  const cmdHint = useMemo(() => {
+    const m = /^\/([a-z0-9_-]{1,32})(?:@([a-z0-9_.]+))?\s/i.exec(text);
+    if (!m) return null;
+    return botCommands.find((x) => x.name === m[1].toLowerCase() && (!m[2] || x.username === m[2].toLowerCase())) ?? null;
+  }, [text, botCommands]);
+
   const computeSuggestions = (value: string, caret: number) => {
     const before = value.slice(0, caret);
+    // bot slash commands at the very start of the message
+    const slash = /^\/([a-z0-9_-]{0,32})$/i.exec(before);
+    if (slash && st?.kind === 'community') {
+      const q = slash[1].toLowerCase();
+      const items: Suggestion[] = [];
+      for (const cmd of botCommands) {
+        if (q && !cmd.name.startsWith(q)) continue;
+        items.push({
+          key: cmd.bot + cmd.name,
+          label: (
+            <span className="sugg-cmd">
+              <b>/{cmd.name}</b> <span className="sugg-args">{(cmd.args ?? []).map((a) => (a.optional ? `[${a.name}]` : `<${a.name}>`)).join(' ')}</span>
+            </span>
+          ),
+          sub: `${cmd.desc ? cmd.desc + ' · ' : ''}${app().nameOf(cmd.bot, c)}`,
+          insert: cmd.dup ? `/${cmd.name}@${cmd.username}` : `/${cmd.name}`,
+        });
+        if (items.length >= 12) break;
+      }
+      setSugg(items.length ? { items, start: 0, sel: 0 } : null);
+      return;
+    }
     const m = /(^|\s)([@#:])([^\s@#:]{0,32})$/.exec(before);
     if (!m) return setSugg(null);
     const trig = m[2];
@@ -225,6 +270,23 @@ export function Composer({ c, ch, st, files, setFiles, placeholder }: { c: strin
         <button type="button" className="scheduled-chip" onClick={() => set({ panel: 'inbox', modal: null })}>
           <I.calendar size={13} /> {scheduledHere} scheduled message{scheduledHere > 1 ? 's' : ''} here
         </button>
+      )}
+      {cmdHint && (
+        <div className="cmd-hint">
+          <I.bot size={14} />
+          <code>{commandUsage(cmdHint)}</code>
+          <span className="muted">
+            {cmdHint.desc} · {app().nameOf(cmdHint.bot, c)}
+          </span>
+          {(cmdHint.args ?? []).map((a) => (
+            <span key={a.name} className="cmd-arg">
+              <b>{a.name}</b> {a.type}
+              {a.optional ? ', optional' : ''}
+              {a.choices ? `: ${a.choices.join(' / ')}` : ''}
+              {a.desc ? `. ${a.desc}` : ''}
+            </span>
+          ))}
+        </div>
       )}
       {replyTo && (
         <div className="reply-bar">

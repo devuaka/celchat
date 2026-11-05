@@ -39,6 +39,7 @@ phones), or download the Windows desktop app from
 | Edit history | hidden | visible (peers keep every signed version anyway) |
 | Scheduled messages, reminders, bookmarks | no | yes |
 | Markdown tables | no | yes |
+| Make a bot | developer portal, a token, and a server to host it | write it in the app, test it, add it: it runs in your CelChat, free |
 | Runs without the company's servers | no | yes (P2P, self-hostable hub, archive peers) |
 
 Discord still wins on scale (huge servers, big video calls), bots and integrations, mobile push
@@ -56,11 +57,38 @@ notifications and polish from years of work. CelChat is honest about that below.
 | Files | Images, GIFs, videos, audio, any file: sent peer to peer in chunks with progress, cancel, retry and sha256 verification; previews, drag and drop, paste, spoilers, lightbox |
 | GIFs | Search via KLIPY or GIPHY (Tenor's API was shut down in 2026), through the hub's key or your own; picked GIFs are sent peer to peer, so recipients never contact the GIF service. Favorites and uploads. |
 | Calls | Voice channels with a video stage, 1:1 and group calls with ringing, camera, screen share with system audio (720p to source quality), push-to-talk, mute, deafen, device selection, noise suppression, speaking indicators, per-person volume, soundboard |
+| Bots | Write bots in JavaScript in a built-in studio (editor, test console, logs, docs), start from 6 templates (starter, welcomer, moderator, role buttons, weather, blank) or import a shared `.celbot` file; slash commands with typed arguments and autocomplete, embeds, buttons, files, reactions, moderation, storage, timers; sandboxed, no network unless allowed |
 | Customization | 10 themes, a full theme editor (every color, font, size, spacing, message style, avatar shape, chat background, custom CSS), uploaded fonts used everywhere, theme import/export and sharing in chat |
 | Notifications | Desktop notifications, sounds, mention detection, per-community and per-channel levels, mute, DND, unread badges (tab title, taskbar in the desktop app) |
 | Privacy | E2E encrypted DMs on every path, signed (MITM-proof) WebRTC signaling, encrypted relay fallback, direct-connection policy, DM and friend-request filters, blocking |
 | Availability | Optional **archive peers**: always-on members you self-host that keep history and attachments available while every human member is offline |
 | Apps | Website, installable PWA (desktop and mobile, offline shell), Windows desktop app (tray, taskbar badge, global mute/deafen hotkeys, `celchat://` invite links, start with Windows), responsive mobile layout |
+
+## Bots
+
+Settings, **Bots**, **New bot**: pick a template and it is running. Open it to edit the code, try it in
+the **Test** tab (nothing leaves your device), then add it to a community from its **Communities** tab.
+
+```js
+bot.command('roll', 'Roll a die', ['sides:integer?'], async (ctx, { sides = 6 }) => {
+  await ctx.reply(`🎲 ${ctx.author.mention} rolled **${1 + Math.floor(Math.random() * sides)}**`);
+});
+
+bot.command('poll', 'Quick yes/no', ['question:text'], async (ctx, { question }) => {
+  await ctx.send({
+    embeds: [{ title: question, color: '#8b7cf6' }],
+    buttons: [{ id: 'vote:yes', label: 'Yes', style: 'success' }, { id: 'vote:no', label: 'No', style: 'danger' }],
+  });
+});
+bot.button('vote:', async (press) => press.reply(`${press.user.mention} voted ${press.id.slice(5)}`));
+```
+
+How it works: a bot is its own identity (a key pair kept encrypted on your device) and joins a
+community as a normal member, so every peer checks its actions against its roles exactly like a
+person's. Its code runs in a Web Worker inside a sandboxed, opaque-origin iframe: it cannot touch your
+keys, files, DMs or other communities, and it has no network unless you turn that on for it. Share a
+bot by exporting a `.celbot` file and dropping it in any chat; others review the code and import their
+own copy. The full API is in the studio's **Docs** tab.
 
 ## Quick start (development)
 
@@ -87,8 +115,9 @@ http://127.0.0.1:8780 in another tab: a different origin gets its own storage, s
 | `npm run desktop` | Build the serverless client and open it in the desktop app |
 | `npm run dist:desktop` | Build the Windows installer into `release/` |
 | `npm run publish` | Push to GitHub Pages and attach the installer to a GitHub release (gh CLI) |
-| `npm test` | Unit tests (permission engine, polls, emoji, GIF providers) |
-| `npm run test:e2e` | Two isolated browsers against a local hub: messaging, files, permissions, voice, camera, screen share, polls, emoji, scheduling, archive peer |
+| `npm test` | Unit tests (permission engine, polls, emoji, GIF providers, bot messages, bot sandbox) |
+| `npm run test:e2e` | Two isolated browsers against a local hub: messaging, files, permissions, voice, camera, screen share, polls, emoji, scheduling, bots, archive peer |
+| `node scripts/sandbox-csp.mjs` | Regenerate `shared/botSandbox.ts` after editing `scripts/bot-sandbox.js` (the CSP hash must match) |
 | `npm run test:serverless` | Two browsers against the public brokers only (needs internet) |
 | `npm run test:desktop` | Launches the Electron app and signs up inside it |
 
@@ -132,6 +161,9 @@ docs/     ARCHITECTURE.md (protocol + data model), SELF_HOSTING.md
   still syncs it.
 - **No forward secrecy** in DMs yet (static X25519 keys, no ratchet).
 - **Notifications** only arrive while CelChat is open (a tab, the PWA or the desktop app in the tray).
+- **Bots run where their owner's CelChat runs.** A bot is online while its owner has CelChat open (the
+  desktop app in the tray works well for this). There is no headless 24/7 bot runner yet, and bots
+  only work in communities, not DMs.
 - **Scheduled messages and reminders** run on your device: if CelChat is closed at that moment, they
   happen the next time you open it.
 - **The Windows installer is not code-signed** (signing certificates cost money), so SmartScreen warns

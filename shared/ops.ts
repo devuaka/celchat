@@ -164,6 +164,43 @@ export const zCommunityTheme = z
   })
   .strict();
 
+// ---- rich bot content: embeds + buttons (any member may send them; bots use them most)
+const zHttpsUrl = z.string().max(500).regex(/^https:\/\/[^\s<>"']+$/);
+export const zEmbed = z
+  .object({
+    title: z.string().max(256).optional(),
+    url: zHttpsUrl.optional(),
+    description: z.string().max(LIMITS.embedChars).optional(),
+    color: zColor.optional(),
+    author: z.string().max(256).optional(),
+    fields: z
+      .array(z.object({ name: z.string().min(1).max(256), value: z.string().min(1).max(1024), inline: z.boolean().optional() }).strict())
+      .max(25)
+      .optional(),
+    /** an attachment of the same message, shown inside the embed (never a remote URL: no IP leaks) */
+    image: zAsset.optional(),
+    thumb: zAsset.optional(),
+    footer: z.string().max(512).optional(),
+    ts: z.number().int().min(0).optional(),
+  })
+  .strict();
+export type Embed = z.infer<typeof zEmbed>;
+
+export const zButtonId = z.string().regex(/^[A-Za-z0-9_:.-]{1,64}$/);
+export const zButton = z
+  .object({
+    id: zButtonId,
+    label: z.string().max(80),
+    style: z.enum(['primary', 'secondary', 'success', 'danger', 'link']),
+    emoji: z.string().max(LIMITS.emojiChars).optional(),
+    url: zHttpsUrl.optional(),
+    disabled: z.boolean().optional(),
+  })
+  .strict()
+  .refine((b) => b.label.trim() || b.emoji, 'button needs a label or emoji')
+  .refine((b) => (b.style === 'link') === !!b.url, 'link buttons (and only they) have a url');
+export type MsgButton = z.infer<typeof zButton>;
+
 const zChannelInit = z.object({
   id: zId,
   type: z.enum(['text', 'voice', 'category']),
@@ -271,13 +308,23 @@ export const PAYLOADS = {
         ends: z.number().int().nullable(),
       })
       .optional(),
+    embeds: z.array(zEmbed).max(LIMITS.embedsPerMessage).optional(),
+    buttons: z.array(zButton).max(LIMITS.buttonsPerMessage).optional(),
   }),
-  edit: z.object({ id: hex(64), text: z.string().max(LIMITS.messageChars) }),
+  /** embeds/buttons replace the old ones when present (bots update their own messages) */
+  edit: z.object({
+    id: hex(64),
+    text: z.string().max(LIMITS.messageChars),
+    embeds: z.array(zEmbed).max(LIMITS.embedsPerMessage).optional(),
+    buttons: z.array(zButton).max(LIMITS.buttonsPerMessage).optional(),
+  }),
   del: z.object({ id: hex(64) }),
   react: z.object({ id: hex(64), e: z.string().min(1).max(LIMITS.emojiChars), on: z.boolean() }),
   pin: z.object({ id: hex(64), on: z.boolean() }),
   /** poll votes: the latest vote op per voter wins; an empty list withdraws the vote */
   vote: z.object({ id: hex(64), choices: z.array(z.number().int().min(0).max(9)).max(10) }),
+  /** a member pressed a button on a message; whoever runs the message's bot reacts to it */
+  interact: z.object({ id: hex(64), b: zButtonId }),
 } as const;
 
 export type Kind = keyof typeof PAYLOADS;
@@ -288,7 +335,7 @@ export const COMMUNITY_GOV: ReadonlySet<string> = new Set([
   'inv.create', 'inv.revoke', 'emoji.add', 'emoji.del', 'join', 'leave', 'kick', 'ban', 'unban', 'timeout', 'mroles', 'nick', 'transfer',
 ]);
 export const GROUP_GOV: ReadonlySet<string> = new Set(['gcreate', 'gadd', 'gremove', 'gleave', 'gupdate']);
-export const MESSAGE_KINDS: ReadonlySet<string> = new Set(['msg', 'edit', 'del', 'react', 'pin', 'vote']);
+export const MESSAGE_KINDS: ReadonlySet<string> = new Set(['msg', 'edit', 'del', 'react', 'pin', 'vote', 'interact']);
 /** kinds whose payload targets another op (indexed for materialization) */
 export const TARGETING: ReadonlySet<string> = new Set(['edit', 'del', 'react', 'pin', 'vote']);
 

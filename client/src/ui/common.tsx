@@ -5,7 +5,7 @@ import { useStore, closeModal, toast } from '../state/store';
 import { app, hasApp } from '../core/app';
 import type { AssetRef } from '@shared/ops';
 import type { Presence } from '@shared/protocol';
-import { displayNameOf, type ProfileCard } from '@shared/profile';
+import { displayNameOf, isArchivePeer, type ProfileCard } from '@shared/profile';
 import { fontFamily } from '../core/theme';
 
 export const I = {
@@ -24,6 +24,7 @@ export const I = {
   bookmark: L.Bookmark, bookmarkOn: L.BookmarkCheck, alarm: L.AlarmClock, calendar: L.CalendarClock, poll: L.ChartColumn, waveform: L.AudioLines,
   history: L.ClockArrowUp, keyboard: L.Keyboard, volumeUp: L.Volume2, music: L.AudioWaveform, folderPlus: L.FolderPlus, readAloud: L.Speech, maximize: L.Maximize,
   installApp: L.MonitorDown, stop: L.Square, grid2: L.Grid2x2,
+  bot: L.Bot, code: L.Code, terminal: L.Terminal, book: L.BookOpen, flask: L.FlaskConical, restart: L.RotateCw, fileUp: L.FileUp, external: L.ExternalLink,
 };
 
 export function cls(...xs: (string | false | null | undefined)[]) {
@@ -138,11 +139,16 @@ export function UserName({ pub, c, color, className }: { pub: string; c?: string
       <span className={cls('uname', `ns-${ns}`, className)} style={{ ...style, '--ns-color': card?.colors.accent ?? 'currentColor' } as CSSProperties}>
         {name}
       </span>
-      {card?.bot && (
-        <span className="bot-badge" title="Always-on archive peer (automated, not a person)">
-          archive
-        </span>
-      )}
+      {card?.bot &&
+        (isArchivePeer(card) ? (
+          <span className="bot-badge" title="Always-on archive peer (automated, not a person)">
+            archive
+          </span>
+        ) : (
+          <span className="bot-badge app" title="Bot: automated, runs inside a member's CelChat">
+            <L.Bot size={10} strokeWidth={2.6} /> bot
+          </span>
+        ))}
     </>
   );
 }

@@ -224,6 +224,39 @@ exact peer protocol of browsers, but only over the encrypted hub relay (no WebRT
 * **Ordering:** both browsers and the keeper process each link's messages strictly in order, and
   browsers apply WebRTC signals strictly in order (concurrent handling lost renegotiation offers).
 
+## 10b. Bots
+
+`client/src/core/bots.ts` (host), `client/src/bots/runtime.js` (the `bot` API inside the worker),
+`scripts/bot-sandbox.js` (the iframe glue, compiled into `shared/botSandbox.ts`).
+
+* **Identity.** Each bot has its own Ed25519 key, generated on the owner's device and stored in the
+  account database encrypted with a key derived from the owner's key (`celchat/bots/v1`). Its profile
+  card is signed by the bot key and carries `bot: true` and `botInfo: { kind: 'app', hosted: true,
+  commands }`, so the slash-command list everyone's composer shows is signed by the bot.
+* **Membership.** The owner adds a bot with a single-use invite (`inv.create`, then a `join` signed by
+  the bot key). From then on the bot is a normal member: roles, overwrites, timeouts, kicks and bans
+  apply, and every peer validates its ops with the same engine as anyone's.
+* **Authoring.** `Convos.authorAs(keys, dv, ...)` signs ops with the bot key on its own per-device chain
+  (sequence numbers serialized per chain, never reused). The host pre-checks permissions for clear
+  errors and gossips the op like any other.
+* **Sandbox.** The bot's source runs in a dedicated Worker created by an `<iframe sandbox="allow-scripts"
+  srcdoc>`: opaque origin (no CelChat storage, cookies or keys), CSP `connect-src 'none'` (or `https:`
+  when the owner allows the internet), `script-src` limited to the glue script's hash. Every action is
+  a message to the host. A watchdog stops a bot whose worker stops answering pings for 20 s.
+* **Events.** The host routes live ops (at most 2 minutes old, each handled once) from communities the
+  bot is in and can see: `msg` (message + slash-command parsing with typed arguments), `interact`,
+  `react`, `join` / `leave` / `kick` / `ban`.
+* **Rich messages.** `msg` and `edit` payloads may carry `embeds` (title, description, fields, color,
+  footer; images must be attachments of the same message, never remote URLs, so viewers never contact
+  third parties) and `buttons`. Pressing a button signs an `interact { id, b }` op; whoever runs the
+  bot that wrote the message checks it with `Engine.checkInteraction` (member, button exists, not
+  disabled, REACT or SEND permission in that channel) and hands it to the bot.
+* **Presence.** A host tells linked peers which bots it runs with a `bothost` message: each entry is
+  the bot's card plus a signature by the bot key over `celchat-bot-host:<host key>:<ts>:<on>`, so
+  nobody can claim to run someone else's bot. Peers show the bot online while that link is up.
+* **Limits.** 5 messages per 5 s per channel and 30 per 30 s per bot, 50 commands, 1 MB of storage,
+  256 KB of code.
+
 ## 11. Technical decisions (and why)
 
 | Decision | Why |

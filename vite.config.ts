@@ -1,6 +1,7 @@
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'node:url';
+import { SANDBOX_SCRIPT_HASH } from './shared/botSandbox';
 
 const HUB = process.env.HUB_DEV_URL || 'http://localhost:8781';
 
@@ -11,7 +12,8 @@ const csp = (): Plugin => ({
   transformIndexHtml(html) {
     const policy = [
       "default-src 'self'",
-      "script-src 'self' 'wasm-unsafe-eval'",
+      // the hash allows only the bot sandbox's inline script (its srcdoc frame inherits this policy)
+      `script-src 'self' 'wasm-unsafe-eval' '${SANDBOX_SCRIPT_HASH}'`,
       "style-src 'self' 'unsafe-inline'",
       "img-src 'self' blob: data:",
       "media-src 'self' blob: data:",

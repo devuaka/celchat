@@ -293,6 +293,45 @@ export class Convos extends Emitter<Events> {
     return stored[0];
   }
 
+  private extSeq = new Map<string, number>();
+  private extLock = new Map<string, Promise<unknown>>();
+
+  /**
+   * Create, sign and store an op as another identity this device holds (a bot it runs). Ops of one
+   * (conversation, key, device) chain are serialized so sequence numbers never repeat.
+   */
+  authorAs(keys: Keys, dv: string, c: string, k: string, p: unknown): Promise<StoredOp> {
+    const lockKey = `${c}|${keys.pub}|${dv}`;
+    const prev = this.extLock.get(lockKey) ?? Promise.resolve();
+    const run = prev
+      .catch(() => undefined)
+      .then(async () => {
+        const convo = this.map.get(c);
+        if (!convo) throw new Error('Unknown conversation');
+        let s = this.extSeq.get(lockKey);
+        if (s === undefined) {
+          const cur = await this.db
+            .transaction('ops')
+            .store.index('chain')
+            .openKeyCursor(IDBKeyRange.bound([c, keys.pub, dv, 0], [c, keys.pub, dv, Infinity]), 'prev');
+          s = cur ? (cur.key as unknown as [string, string, string, number])[3] : 0;
+        }
+        s += 1;
+        this.extSeq.set(lockKey, s);
+        const l = convo.eng.maxLamport + 1;
+        convo.eng.noteKey({ l, id: '' } as Op);
+        const op = createOp(keys, dv, { c, s, l, k, p });
+        const stored = await this.store(convo, [op], 'local');
+        if (!stored.length) {
+          this.extSeq.set(lockKey, s - 1); // never leave a gap in the chain
+          throw new Error('That was rejected before it was sent (not a member, or no valid invite).');
+        }
+        return stored[0];
+      });
+    this.extLock.set(lockKey, run);
+    return run;
+  }
+
   async createCommunity(name: string, icon?: unknown) {
     const nonce = randomHex(16);
     const c = groupOrCommunityId(this.me, nonce);

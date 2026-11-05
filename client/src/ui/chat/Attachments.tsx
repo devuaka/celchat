@@ -19,7 +19,9 @@ export function Attachments({ att, c, author }: { att: Attachment[]; c: string; 
           ))}
         </div>
       )}
-      {rest.map((a) => (a.theme ? <ThemeCard key={a.hash} a={a} c={c} author={author} /> : <FileCard key={a.hash} a={a} c={c} author={author} />))}
+      {rest.map((a) =>
+        a.theme ? <ThemeCard key={a.hash} a={a} c={c} author={author} /> : /\.celbot$/i.test(a.name) ? <BotFileCard key={a.hash} a={a} c={c} author={author} /> : <FileCard key={a.hash} a={a} c={c} author={author} />,
+      )}
     </div>
   );
 }
@@ -219,6 +221,48 @@ function FileCard({ a, c, author }: { a: Attachment; c: string; author: string }
         {!url && t && <Progress a={a} t={t} onFetch={fetchNow} />}
       </span>
       {url ? <IconButton icon={I.download} title="Save file" onClick={() => void save()} /> : !t && <IconButton icon={I.download} title="Download from peers" onClick={fetchNow} />}
+    </div>
+  );
+}
+
+/** A shared CelChat bot (.celbot). Importing shows the code and asks first; nothing runs on its own. */
+function BotFileCard({ a, c, author }: { a: Attachment; c: string; author: string }) {
+  const { url, t, fetchNow } = useAttachment({ ...a, mime: 'application/json' }, c, author);
+  const [busy, setBusy] = useState(false);
+  return (
+    <div className="theme-card">
+      <span className="theme-card-icon">
+        <I.bot size={22} />
+      </span>
+      <span className="file-meta">
+        <span className="file-name">{a.name.replace(/\.celbot$/i, '')}</span>
+        <span className="file-size">CelChat bot · {fmtBytes(a.size)}</span>
+        {!url && t && <Progress a={a} t={t} onFetch={fetchNow} />}
+      </span>
+      <button
+        type="button"
+        className="chip accent"
+        disabled={busy}
+        onClick={async () => {
+          try {
+            let blob = await app().files.getBlob(a.hash);
+            if (!blob) {
+              setBusy(true);
+              await app().ensureBlob(a, { c, owner: author, auto: true });
+              blob = await app().files.getBlob(a.hash);
+              setBusy(false);
+            }
+            if (!blob) throw new Error('Nobody online has this bot file right now.');
+            const file = app().bots.parseImport(await blob.text(), a.name);
+            set({ modal: { kind: 'import-bot', props: { file } } });
+          } catch (e) {
+            setBusy(false);
+            toast((e as Error).message, 'error');
+          }
+        }}
+      >
+        Review &amp; import
+      </button>
     </div>
   );
 }

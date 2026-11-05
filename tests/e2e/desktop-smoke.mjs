@@ -16,6 +16,7 @@ const userData = mkdtempSync(path.join(tmpdir(), 'celchat-desktop-'));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const proc = spawn(exe, [...(packaged ? [] : ['.']), '--remote-debugging-port=9339', `--user-data-dir=${userData}`], { cwd: root, stdio: 'ignore' });
 let ok = false;
+const logs = [];
 try {
   let browser;
   for (let i = 0; i < 40 && !browser; i++) {
@@ -32,6 +33,8 @@ try {
     if (!page) await sleep(250);
   }
   if (!page) throw new Error('no app:// window');
+  page.on('console', (m) => logs.push(`[${m.type()}] ${m.text()}`));
+  page.on('pageerror', (e) => logs.push('[pageerror] ' + e.message));
   const env = await page.evaluate(() => ({ url: location.href, secure: isSecureContext, idb: !!indexedDB, bridge: !!window.celDesktop, ua: navigator.userAgent.includes('CelChatDesktop') }));
   console.log('window:', JSON.stringify(env));
   if (!env.secure || !env.bridge || !env.ua) throw new Error('desktop environment incomplete');
@@ -52,6 +55,24 @@ try {
     await sleep(500);
   }
   console.log(ok ? 'PASS desktop app: signed up and connected to the public brokers' : 'FAIL: never came online');
+  if (ok) {
+    // bots run in a sandboxed srcdoc iframe + Worker: make sure that works under app://, through the UI
+    try {
+      await page.keyboard.press('Control+Comma');
+      await page.locator('.settings-tab', { hasText: 'Bots' }).click({ timeout: 10000 });
+      await page.locator('.template-card', { hasText: 'Starter Bot' }).click({ timeout: 10000 });
+      await page.locator('.bot-nav-head .bot-status.running').waitFor({ timeout: 20000 });
+      await page.locator('.play-compose input').fill('/ping');
+      await page.locator('.play-compose input').press('Enter');
+      await page.locator('.play-msg .msg-body', { hasText: 'Pong!' }).waitFor({ timeout: 10000 });
+      console.log('PASS desktop app: a sandboxed bot runs and answers /ping');
+    } catch (e) {
+      ok = false;
+      console.log('FAIL bot in desktop app:', e.message.split('\n')[0]);
+      console.log('  studio:', await page.locator('.settings-main').innerText().catch(() => '(none)').then((t) => t.slice(0, 400)));
+      console.log('  console:', logs.slice(-12).join('\n  '));
+    }
+  }
   await browser.close();
 } catch (e) {
   console.log('FAIL', e.message);

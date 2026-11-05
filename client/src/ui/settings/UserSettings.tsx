@@ -4,6 +4,7 @@ import { app } from '../../core/app';
 import { Modal, Button, Field, I, Toggle, Segmented, Slider, ColorInput, cls, copy, pickFile, download, confirmDialog, fmtDate, IconButton } from '../common';
 import { ProfileView } from '../profile/Profile';
 import { ThemeEditor } from './ThemeEditor';
+import { BotsTab } from '../bots/BotStudio';
 import { recoveryKeyOf, changePassword, makeBackup, validatePassword, normalizeUsername, validateUsername } from '../../core/identity';
 import { listDevices } from '../../core/voice';
 import { askNotificationPermission } from '../../core/notify';
@@ -19,7 +20,7 @@ import type { Settings } from '../../core/settings';
 import type { ProfileCard, ProfileDraft } from '@shared/profile';
 import { LIMITS } from '@shared/limits';
 
-type Tab = 'account' | 'profile' | 'privacy' | 'appearance' | 'chat' | 'voice' | 'notifications' | 'network' | 'storage' | 'about';
+type Tab = 'account' | 'profile' | 'privacy' | 'appearance' | 'chat' | 'voice' | 'notifications' | 'bots' | 'network' | 'storage' | 'about';
 
 const TABS: { id: Tab; label: string; group: string }[] = [
   { id: 'account', label: 'My account', group: 'User' },
@@ -29,6 +30,7 @@ const TABS: { id: Tab; label: string; group: string }[] = [
   { id: 'chat', label: 'Chat', group: 'App' },
   { id: 'voice', label: 'Voice & audio', group: 'App' },
   { id: 'notifications', label: 'Notifications', group: 'App' },
+  { id: 'bots', label: 'Bots', group: 'Build' },
   { id: 'network', label: 'Connection & hub', group: 'Advanced' },
   { id: 'storage', label: 'Storage & backup', group: 'Advanced' },
   { id: 'about', label: 'How CelChat works', group: 'Advanced' },
@@ -76,6 +78,7 @@ export function UserSettings({ initial }: { initial?: string }) {
           {tab === 'chat' && <ChatTab />}
           {tab === 'voice' && <VoiceTab />}
           {tab === 'notifications' && <NotifyTab />}
+          {tab === 'bots' && <BotsTab />}
           {tab === 'network' && <NetworkTab />}
           {tab === 'storage' && <StorageTab />}
           {tab === 'about' && <AboutTab />}

@@ -5,6 +5,7 @@ import { CustomStatus } from '../side/HomeSidebar';
 import { memberColor, highestPos, basePerms, type CommunityState, type GroupState } from '@shared/engine';
 import { P, has } from '@shared/perms';
 import type { Presence } from '@shared/protocol';
+import { isArchivePeer } from '@shared/profile';
 
 export function MemberList({ c }: { c: string }) {
   const st = useStore((s) => s.states[c]) as CommunityState | null;
@@ -16,7 +17,8 @@ export function MemberList({ c }: { c: string }) {
     const x: Presence | undefined = presence[p];
     return !!x && x !== 'invisible';
   };
-  const bots = Object.keys(st.members).filter((p) => profiles[p]?.bot);
+  const archive = Object.keys(st.members).filter((p) => isArchivePeer(profiles[p]));
+  const appBots = Object.keys(st.members).filter((p) => profiles[p]?.bot && !isArchivePeer(profiles[p]));
   const members = Object.values(st.members).filter((m) => !profiles[m.pub]?.bot);
   const hoisted = Object.values(st.roles)
     .filter((r) => r.hoist && r.id !== st.id)
@@ -32,7 +34,8 @@ export function MemberList({ c }: { c: string }) {
   if (on.length) groups.push({ title: 'Online', pubs: on });
   const off = members.filter((m) => !online(m.pub)).map((m) => m.pub);
   if (off.length) groups.push({ title: 'Offline', pubs: off });
-  if (bots.length) groups.push({ title: 'Archive peers', pubs: bots });
+  if (appBots.length) groups.push({ title: 'Bots', pubs: appBots });
+  if (archive.length) groups.push({ title: 'Archive peers', pubs: archive });
   const sortName = (a: string, b: string) => app().nameOf(a, c).localeCompare(app().nameOf(b, c));
   return (
     <aside className="members">
@@ -45,7 +48,7 @@ export function MemberList({ c }: { c: string }) {
             .sort(sortName)
             .slice(0, g.title === 'Offline' ? 300 : 1000)
             .map((pub) => (
-              <MemberRow key={pub} c={c} st={st} pub={pub} offline={g.title === 'Offline'} me={me} />
+              <MemberRow key={pub} c={c} st={st} pub={pub} offline={g.title === 'Offline' || ((g.title === 'Bots' || g.title === 'Archive peers') && !online(pub))} me={me} />
             ))}
         </div>
       ))}

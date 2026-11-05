@@ -7,6 +7,7 @@ import type { ConvoState, Message } from '@shared/engine';
 import type { VoicePeer, VoiceRoom } from '../core/voice';
 import type { Transfer } from '../core/files';
 import type { Settings } from '../core/settings';
+import type { BotView, BotLog, PlayLine } from '../core/bots';
 import { defaultSettings } from '../core/settings';
 import { defaultTheme, type Theme } from '../core/theme';
 
@@ -133,6 +134,11 @@ export interface S {
   installPrompt: { prompt: () => Promise<void> } | null;
   /** mobile: sidebar drawer open */
   navOpen: boolean;
+  /** bots this device runs */
+  bots: BotView[];
+  botLogs: Record<string, BotLog[]>;
+  /** the Test tab of each bot (never leaves this device) */
+  botPlay: Record<string, PlayLine[]>;
 }
 
 export interface MenuItem {
@@ -192,6 +198,9 @@ export const useStore = create<S>(() => ({
   jumpTo: null,
   installPrompt: null,
   navOpen: false,
+  bots: [],
+  botLogs: {},
+  botPlay: {},
 }));
 
 export function openMenu(e: { clientX: number; clientY: number; preventDefault?: () => void; stopPropagation?: () => void }, items: MenuItem[]) {

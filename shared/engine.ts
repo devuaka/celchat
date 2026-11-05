@@ -5,7 +5,7 @@
  * file IS the permission system.
  */
 import {
-  type Op, type EKey, type AssetRef, type Attachment, keyOf, cmpKey, cmpOps, parsePayload, COMMUNITY_GOV, GROUP_GOV,
+  type Op, type EKey, type AssetRef, type Attachment, type Embed, type MsgButton, keyOf, cmpKey, cmpOps, parsePayload, COMMUNITY_GOV, GROUP_GOV,
   groupOrCommunityId, dmId, type Payload,
 } from './ops';
 import { P, ALL_PERMS, CHANNEL_PERMS, TIMEOUT_STRIP, DEFAULT_EVERYONE } from './perms';
@@ -140,6 +140,8 @@ export interface Message {
   /** earlier versions of the text (every peer keeps every signed edit anyway) */
   history: { text: string; at: number }[];
   poll: Poll | null;
+  embeds: Embed[];
+  buttons: MsgButton[];
 }
 
 export interface Poll {
@@ -831,7 +833,7 @@ export class Engine {
     if (op.k === 'msg') {
       const p = parsePayload('msg', op.p);
       if (!p) return { ok: false, reason: 'bad payload' };
-      if (p.text.trim() === '' && !(p.att && p.att.length) && !p.poll) return { ok: false, reason: 'empty message' };
+      if (p.text.trim() === '' && !(p.att && p.att.length) && !p.poll && !(p.embeds && p.embeds.length)) return { ok: false, reason: 'empty message' };
       if (st.kind === 'community') {
         const ch = st.channels[p.ch];
         if (!ch || ch.type !== 'text') return { ok: false, reason: 'unknown channel' };
@@ -841,7 +843,7 @@ export class Engine {
       } else if (p.ch !== 'main') return { ok: false, reason: 'bad channel' };
       return { ok: true, st };
     }
-    const kind = op.k as 'edit' | 'del' | 'react' | 'pin' | 'vote';
+    const kind = op.k as 'edit' | 'del' | 'react' | 'pin' | 'vote' | 'interact';
     if (!parsePayload(kind, op.p)) return { ok: false, reason: 'bad payload' };
     return { ok: true, st };
   }
@@ -881,6 +883,8 @@ export class Engine {
       canPingAll,
       history: [],
       poll: p?.poll ? { q: p.poll.q, options: p.poll.options, multi: p.poll.multi, ends: p.poll.ends, votes: {} } : null,
+      embeds: p?.embeds ?? [],
+      buttons: p?.buttons ?? [],
     };
     const ch = m.ch;
     for (const op of [...related].sort(cmpOps)) {
@@ -896,6 +900,8 @@ export class Engine {
           if (m.history.length < 50) m.history.push({ text: m.text, at: m.editedAt ?? m.t });
           m.text = e.text;
           m.editedAt = op.t;
+          if (e.embeds) m.embeds = e.embeds;
+          if (e.buttons) m.buttons = e.buttons;
           m.mentions = parseMentions(e.text);
           if (st.kind === 'community') m.mentions.roles = m.mentions.roles.filter((r) => st.roles[r] && (canPingAll || st.roles[r].mentionable));
           break;
@@ -953,8 +959,27 @@ export class Engine {
       m.pinned = false;
       m.history = [];
       m.poll = null;
+      m.embeds = [];
+      m.buttons = [];
     }
     return m;
+  }
+
+  /**
+   * Is this 'interact' op a legitimate button press on message `m`? Checked by whoever runs the
+   * bot that wrote `m` (the press itself changes no shared state).
+   */
+  checkInteraction(op: Op, m: Message): { ok: true; button: MsgButton } | { ok: false; reason: string } {
+    if (op.k !== 'interact') return { ok: false, reason: 'not an interaction' };
+    const chk = this.checkMessageOp(op);
+    if (!chk.ok || !chk.st) return { ok: false, reason: chk.reason ?? 'invalid' };
+    const p = parsePayload('interact', op.p);
+    if (!p || p.id !== m.id || m.deleted) return { ok: false, reason: 'bad target' };
+    const button = m.buttons.find((b) => b.id === p.b);
+    if (!button || button.disabled || button.style === 'link') return { ok: false, reason: 'no such button' };
+    const st = chk.st;
+    if (st.kind === 'community' && !(channelPerms(st, op.a, m.ch, tEff(op)) & (P.REACT | P.SEND))) return { ok: false, reason: 'missing permission' };
+    return { ok: true, button };
   }
 }
 
