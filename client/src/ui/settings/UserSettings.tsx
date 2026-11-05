@@ -384,7 +384,7 @@ function GifSettings() {
     <>
       <h3>GIF search</h3>
       <p className="muted small">
-        Tenor&rsquo;s API was shut down by Google on June 30, 2026, so CelChat searches KLIPY (Tenor-compatible) or GIPHY instead. A GIF you pick is downloaded once and sent to the chat peer to peer like any
+        Tenor&rsquo;s API was shut down by Google on June 30, 2026, so CelChat searches GIPHY instead (KLIPY and other Tenor-compatible APIs work too). A GIF you pick is downloaded once and sent to the chat peer to peer like any
         file, so the people you send it to never contact the GIF service.
       </p>
       <div className="info-box">
@@ -397,8 +397,8 @@ function GifSettings() {
           <div className="grid2">
             <Field label="Provider">
               <select value={g.provider} onChange={(e) => up({ provider: e.target.value as Settings['gifs']['provider'] })}>
-                <option value="klipy">KLIPY (Tenor-compatible)</option>
                 <option value="giphy">GIPHY</option>
+                <option value="klipy">KLIPY (Tenor-compatible)</option>
                 <option value="tenor-compatible">Other Tenor-compatible API</option>
               </select>
             </Field>

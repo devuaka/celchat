@@ -73,7 +73,7 @@ export const defaultSettings = (): Settings => ({
   recentEmoji: ['👍', '😂', '❤️', '🔥', '🎉', '😮', '😢', '🙏'],
   sounds: [],
   folders: [],
-  gifs: { useHub: true, provider: 'klipy', key: '', base: '', filter: 'medium' },
+  gifs: { useHub: true, provider: 'giphy', key: '', base: '', filter: 'medium' },
 });
 
 /** Deep-merge stored settings over defaults so new fields get sane values. */

@@ -602,7 +602,7 @@ function GifPicker({ onSend, onSearchPick, onUpload, onClose }: { onSend: (a: At
           <GifSearch provider={source.provider} onPick={onSearchPick} />
         ) : (
           <div className="muted pad small">
-            GIF search needs a provider key (Tenor&rsquo;s API was shut down by Google in June 2026). Ask your hub operator to set <code className="md-inline">GIF_API_KEY</code>, or add your own free KLIPY or GIPHY key in{' '}
+            GIF search needs a provider key (Tenor&rsquo;s API was shut down by Google in June 2026). Ask your hub operator to set <code className="md-inline">GIF_API_KEY</code>, or add your own free GIPHY key (developers.giphy.com) in{' '}
             <button type="button" className="link" onClick={() => { onClose(); useStore.setState({ modal: { kind: 'settings', props: { tab: 'chat' } } }); }}>
               Settings, then Chat
             </button>

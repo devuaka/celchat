@@ -13,6 +13,17 @@ const api = (method, path, body) => {
   const out = gh(['api', '-X', method, path, ...(body ? ['--input', '-'] : [])], body ? JSON.stringify(body) : undefined);
   return out ? JSON.parse(out) : null;
 };
+/** GitHub's API sometimes drops a request (HTTP/2 REFUSED_STREAM, 502): retry writes a few times. */
+const apiRetry = (method, path, body) => {
+  for (let i = 0; ; i++) {
+    try {
+      return api(method, path, body);
+    } catch (e) {
+      if (i >= 4) throw e;
+      execSync(process.platform === 'win32' ? `ping -n ${2 + i * 2} 127.0.0.1 > nul` : `sleep ${1 + i * 2}`);
+    }
+  }
+};
 const tryApi = (...a) => {
   try {
     return api(...a);
@@ -51,7 +62,7 @@ function pushTree(branch, root, files, extra, message) {
   const all = [...files.map((f) => [relative(root, f).split(sep).join('/'), readFileSync(f)]), ...extra];
   let i = 0;
   for (const [path, buf] of all) {
-    const blob = api('POST', `repos/${repo}/git/blobs`, { content: buf.toString('base64'), encoding: 'base64' });
+    const blob = apiRetry('POST', `repos/${repo}/git/blobs`, { content: buf.toString('base64'), encoding: 'base64' });
     tree.push({ path, mode: '100644', type: 'blob', sha: blob.sha });
     process.stdout.write(`\r  ${branch}: uploaded ${++i}/${all.length}`);
   }

@@ -10,8 +10,8 @@ services:
       # Uncomment when running the TURN profile below:
       # TURN_URLS: "turn:chat.example.com:3478"
       # TURN_SECRET: "CHANGE_ME_LONG_RANDOM"
-      # GIF search (Tenor's API shut down in 2026; KLIPY speaks the same v2 API). The key stays here.
-      # GIF_PROVIDER: "klipy"        # or "giphy" / "tenor-compatible" (+ GIF_BASE_URL)
+      # GIF search (Tenor's API shut down in 2026). GIPHY keys are free at developers.giphy.com. The key stays here.
+      # GIF_PROVIDER: "giphy"        # or "klipy" / "tenor-compatible" (+ GIF_BASE_URL)
       # GIF_API_KEY: "your key"
       # GIF_CONTENT_FILTER: "medium"
       # Archive peers you run (comma-separated CelChat IDs) get a bigger relay budget:

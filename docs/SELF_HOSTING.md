@@ -127,7 +127,7 @@ Set `TRUST_PROXY=1` when behind a proxy so rate limits use the real client IP.
 | `RELAY_TRUSTED_KEYS` | none | CelChat IDs of your archive peers (bigger relay budget) |
 | `RELAY_TRUSTED_BYTES_PER_SEC` | `4194304` | Their relay bandwidth |
 | `MAX_CONNS_PER_IP` | `32` | WebSocket connections per IP |
-| `GIF_PROVIDER` | none | `klipy`, `giphy` or `tenor-compatible` (Tenor's own API shut down on 2026-06-30) |
+| `GIF_PROVIDER` | none | `giphy` (recommended, free key at developers.giphy.com), `klipy` or `tenor-compatible` (Tenor's own API shut down on 2026-06-30) |
 | `GIF_API_KEY` | none | The provider key. Stays on the hub; clients search through `/api/gifs/*` and media is proxied, so the provider never sees users' IPs |
 | `GIF_BASE_URL` | provider default | For `tenor-compatible`: any server speaking Tenor's v2 API |
 | `GIF_CONTENT_FILTER` | `medium` | `off`, `low`, `medium`, `high` |
