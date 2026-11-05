@@ -1,0 +1,31 @@
+/** Hard protocol limits. Peers reject anything larger. */
+export const LIMITS = {
+  opBytes: 96 * 1024,
+  messageChars: 4000,
+  attachmentsPerMessage: 10,
+  thumbChars: 12 * 1024,
+  nameChars: 100,
+  channelNameChars: 100,
+  topicChars: 1024,
+  descriptionChars: 1024,
+  aboutChars: 1200,
+  displayNameChars: 32,
+  nickChars: 32,
+  roleNameChars: 64,
+  maxChannels: 500,
+  maxRoles: 250,
+  maxGroupMembers: 10,
+  maxTimeoutMs: 28 * 24 * 3600 * 1000,
+  emojiChars: 120,
+  maxEmoji: 250,
+  emojiBytes: 512 * 1024,
+  /** Defaults a client applies to files it accepts from peers (user-configurable). */
+  fileMaxBytes: 500 * 1024 * 1024,
+  avatarMaxBytes: 8 * 1024 * 1024,
+  bannerMaxBytes: 10 * 1024 * 1024,
+  chunkBytes: 16 * 1024,
+  voiceRoomCap: 16,
+  voiceRoomWarn: 8,
+} as const;
+
+export const PROTOCOL_VERSION = 1;

@@ -1,0 +1,7 @@
+node_modules/
+dist/
+data/
+*.log
+.DS_Store
+tests/e2e/.profiles/
+tests/e2e/artifacts/

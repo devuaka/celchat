@@ -1,0 +1,58 @@
+services:
+  celchat:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8781:8781"
+    environment:
+      HUB_NAME: "My CelChat"
+      TRUST_PROXY: "1"
+      # Uncomment when running the TURN profile below:
+      # TURN_URLS: "turn:chat.example.com:3478"
+      # TURN_SECRET: "CHANGE_ME_LONG_RANDOM"
+      # GIF search (Tenor's API shut down in 2026; KLIPY speaks the same v2 API). The key stays here.
+      # GIF_PROVIDER: "klipy"        # or "giphy" / "tenor-compatible" (+ GIF_BASE_URL)
+      # GIF_API_KEY: "your key"
+      # GIF_CONTENT_FILTER: "medium"
+      # Archive peers you run (comma-separated CelChat IDs) get a bigger relay budget:
+      # RELAY_TRUSTED_KEYS: ""
+    volumes:
+      - celchat-data:/data
+
+  # Optional: an always-on archive peer. `docker compose --profile keeper up -d`
+  # Then put its CelChat ID (printed in its log) in RELAY_TRUSTED_KEYS above for a bigger relay budget.
+  keeper:
+    build: .
+    profiles: ["keeper"]
+    restart: unless-stopped
+    command: ["npx", "tsx", "keeper/src/index.ts"]
+    depends_on: [celchat]
+    environment:
+      KEEPER_HUB_URL: "ws://celchat:8781/ws"
+      KEEPER_DATA_DIR: "/keeper"
+      KEEPER_USERNAME: "archive"
+      # Your CelChat ID (Settings > My account) or @username: who may add this archive peer.
+      KEEPER_OWNERS: "@your_username"
+    volumes:
+      - keeper-data:/keeper
+
+  # Optional: voice through strict NATs. `docker compose --profile turn up -d`
+  turn:
+    image: coturn/coturn:latest
+    profiles: ["turn"]
+    restart: unless-stopped
+    network_mode: host
+    command:
+      - -n
+      - --use-auth-secret
+      - --static-auth-secret=CHANGE_ME_LONG_RANDOM
+      - --realm=chat.example.com
+      - --listening-port=3478
+      - --min-port=49160
+      - --max-port=49200
+      - --fingerprint
+      - --no-cli
+
+volumes:
+  celchat-data:
+  keeper-data:
