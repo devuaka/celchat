@@ -1,7 +1,7 @@
 {
   "name": "celchat",
   "private": true,
-  "version": "0.3.2",
+  "version": "0.3.3",
   "description": "CelChat: a free, P2P-first, customizable community chat app",
   "type": "module",
   "license": "MIT",
@@ -11,15 +11,52 @@
   "build": {
     "appId": "app.celchat.desktop",
     "productName": "CelChat",
-    "directories": { "output": "release" },
-    "files": ["desktop/**/*", "dist/**/*", "package.json", "!node_modules/**/*"],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "desktop/**/*",
+      "dist/**/*",
+      "package.json",
+      "!node_modules/**/*"
+    ],
     "asar": true,
     "npmRebuild": false,
-    "protocols": [{ "name": "CelChat invite", "schemes": ["celchat"] }],
-    "win": { "target": ["nsis"], "icon": "client/public/icons/icon-256.png" },
-    "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "shortcutName": "CelChat" },
-    "mac": { "target": ["dmg"], "category": "public.app-category.social-networking", "icon": "client/public/icons/icon-512.png" },
-    "linux": { "target": ["AppImage"], "category": "Network", "icon": "client/public/icons/icon-512.png" }
+    "protocols": [
+      {
+        "name": "CelChat invite",
+        "schemes": [
+          "celchat"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "client/public/icons/icon-256.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "CelChat"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "category": "public.app-category.social-networking",
+      "icon": "client/public/icons/icon-512.png"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Network",
+      "icon": "client/public/icons/icon-512.png"
+    }
   },
   "scripts": {
     "desktop": "node scripts/build-variant.mjs serverless && electron .",
@@ -42,6 +79,10 @@
     "node": ">=22.13"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/browser": "^8.0.5",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/ios": "^8.6.0",
     "@fontsource-variable/caveat": "^5.3.0",
     "@fontsource-variable/comfortaa": "^5.3.0",
     "@fontsource-variable/dm-sans": "^5.3.0",
@@ -75,6 +116,7 @@
     "zustand": "^5.0.16"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.6.0",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",

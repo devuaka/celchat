@@ -1,5 +1,5 @@
 /**
- * Discord-flavoured markdown rendered straight to React elements. User text
+ * Chat-flavoured markdown rendered straight to React elements. User text
  * never goes through innerHTML; only highlight.js output (which escapes its
  * input) is injected for code blocks.
  */

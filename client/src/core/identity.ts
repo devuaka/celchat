@@ -109,6 +109,7 @@ export async function changePassword(session: Session, newPassword: string) {
   const rec = await db.get('accounts', session.keys.pub);
   if (!rec) throw new Error('Account not found');
   rec.vault = await encryptSeed(session.keys.seed, newPassword);
+  delete rec.noPassword;
   await db.put('accounts', rec);
 }
 
@@ -118,6 +119,44 @@ export async function updateAccountLabel(pub: string, username: string, displayN
   if (!rec) return;
   rec.username = username;
   rec.displayName = displayName;
+  await db.put('accounts', rec);
+}
+
+// ---------------------------------------------------------------------------
+// Google: the seed comes from (or goes to) the user's own Google Drive app folder
+// ---------------------------------------------------------------------------
+
+/** Sign in on this device with a seed fetched from Google Drive (keeps any password already set here). */
+export async function signInWithGoogleSeed(seed: Uint8Array, meta: { username: string; displayName: string; createdAt: number }, google: { email: string; sub: string }): Promise<Session> {
+  const keys = keysFromSeed(seed);
+  const db = await accounts();
+  const existing = await db.get('accounts', keys.pub);
+  const rec: AccountRecord = existing
+    ? { ...existing, lastUsed: Date.now(), google }
+    : {
+        pub: keys.pub,
+        dv: randomHex(8),
+        username: meta.username,
+        displayName: meta.displayName,
+        createdAt: meta.createdAt,
+        lastUsed: Date.now(),
+        // a random password nobody knows: this account unlocks with Google (a password can be set later)
+        vault: await encryptSeed(seed, randomHex(32)),
+        noPassword: true,
+        google,
+      };
+  rec.wrapped = await wrapSeed(seed);
+  await db.put('accounts', rec);
+  return { keys, dv: rec.dv, account: rec };
+}
+
+/** Remember (or forget) which Google account holds this CelChat account. */
+export async function setAccountGoogle(pub: string, google: { email: string; sub: string } | null) {
+  const db = await accounts();
+  const rec = await db.get('accounts', pub);
+  if (!rec) return;
+  if (google) rec.google = google;
+  else delete rec.google;
   await db.put('accounts', rec);
 }
 

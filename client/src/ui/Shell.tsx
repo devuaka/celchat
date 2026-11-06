@@ -259,10 +259,12 @@ function Confirm({ title, body, confirm, danger, onConfirm }: ConfirmProps) {
             busy={busy}
             onClick={async () => {
               setBusy(true);
+              const self = useStore.getState().modal;
               try {
                 await onConfirm();
               } finally {
-                closeModal();
+                // close only this dialog: the action may have opened another window (e.g. back to Settings)
+                if (useStore.getState().modal === self) closeModal();
               }
             }}
           >

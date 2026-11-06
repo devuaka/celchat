@@ -16,6 +16,8 @@ import { PUBLIC_BROKERS } from '../../core/mqtthub';
 import { PROVIDER_INFO } from '@shared/gifs';
 import { SCREEN_QUALITY, type ScreenQuality } from '../../core/voice';
 import { pttLabel } from '../voice/Stage';
+import { googleEnabled } from '../../core/google';
+import { linkGoogle, unlinkGoogle } from '../../core/googleAccount';
 import type { Settings } from '../../core/settings';
 import type { ProfileCard, ProfileDraft } from '@shared/profile';
 import { LIMITS } from '@shared/limits';
@@ -95,6 +97,85 @@ function useSettings(): [Settings, (fn: (s: Settings) => Settings) => void] {
 
 // ---------------------------------------------------------------------------
 
+/** Sign in with Google on other devices: the key goes to this Google account's private Drive app folder. */
+function GoogleLink() {
+  const acct = app().session.account;
+  const card = useStore((s) => s.myCard)!;
+  const [google, setGoogle] = useState(acct.google ?? null);
+  const [busy, setBusy] = useState(false);
+  if (!googleEnabled()) return null;
+  return (
+    <>
+      <h3>Sign in with Google</h3>
+      {google ? (
+        <>
+          <p className="muted">
+            Linked to <b>{google.email}</b>. Use <b>Continue with Google</b> on any device (web, Windows app, iPhone app) to get this exact account. Your key is kept in a hidden CelChat-only folder in that
+            Google account&rsquo;s Drive.
+          </p>
+          <Button
+            small
+            kind="ghost"
+            busy={busy}
+            onClick={() =>
+              confirmDialog({
+                title: 'Unlink Google?',
+                body: acct.noPassword
+                  ? 'Set a password below first: this account has no password, so after unlinking you could not sign back in on a new device except with your recovery key.'
+                  : `Your key is deleted from ${google.email}'s Drive and Continue with Google stops working for this account. Devices that are already signed in stay signed in.`,
+                confirm: acct.noPassword ? 'OK' : 'Unlink',
+                danger: !acct.noPassword,
+                onConfirm: async () => {
+                  if (acct.noPassword) return;
+                  setBusy(true);
+                  try {
+                    await unlinkGoogle(app().session);
+                    delete acct.google;
+                    setGoogle(null);
+                    toast('Google unlinked', 'success');
+                    // the confirm dialog replaced Settings: bring it back where the user was
+                    set({ modal: { kind: 'settings', props: { tab: 'account' } } });
+                  } catch (e) {
+                    toast((e as Error).message, 'error');
+                  } finally {
+                    setBusy(false);
+                  }
+                },
+              })
+            }
+          >
+            Unlink Google
+          </Button>
+        </>
+      ) : (
+        <>
+          <p className="muted">Link a Google account to sign in to this same account on your phone or another computer with one tap. No password or recovery key needed there.</p>
+          <button
+            type="button"
+            className={cls('google-btn', 'google-btn-inline', busy && 'busy')}
+            disabled={busy}
+            onClick={async () => {
+              setBusy(true);
+              try {
+                const user = await linkGoogle(app().session, card.displayName);
+                acct.google = { email: user.email, sub: user.sub };
+                setGoogle(acct.google);
+                toast(`Linked to ${user.email}`, 'success');
+              } catch (e) {
+                toast((e as Error).message, 'error');
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            {busy ? 'Waiting for Google...' : 'Link Google account'}
+          </button>
+        </>
+      )}
+    </>
+  );
+}
+
 function AccountTab() {
   const card = useStore((s) => s.myCard)!;
   const me = useStore((s) => s.me);
@@ -115,6 +196,7 @@ function AccountTab() {
           </Button>
         </div>
       </Field>
+      <GoogleLink />
       <h3>Recovery key</h3>
       <p className="muted">This key IS your account. Anyone with it can sign in as you. Write it down somewhere safe: nobody can reset it for you.</p>
       {showKey ? (
@@ -140,6 +222,7 @@ function AccountTab() {
           if (err) return toast(err, 'error');
           if (pw !== pw2) return toast("Passwords don't match", 'error');
           await changePassword(app().session, pw);
+          app().session.account.noPassword = false;
           setPw('');
           setPw2('');
           toast('Password changed', 'success');

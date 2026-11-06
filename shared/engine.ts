@@ -159,7 +159,7 @@ const fail = (reason: string): Result => ({ ok: false, reason });
 export const tEff = (op: Op) => Math.min(op.t, op.rcv ?? Number.MAX_SAFE_INTEGER);
 
 // ---------------------------------------------------------------------------
-// Permission math (Discord-compatible semantics)
+// Permission math (roles, overwrites, hierarchy)
 // ---------------------------------------------------------------------------
 
 export function highestPos(st: CommunityState, pub: string): number {

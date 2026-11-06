@@ -8,6 +8,8 @@ gates, and no company server holding your messages.
 **Use it:** https://devuaka.github.io/celchat/ has two buttons: **Web** opens the app in your browser
 (installable as an app on desktop and phones, at https://devuaka.github.io/celchat/app/) and
 **Windows** downloads the desktop app (also on [Releases](https://github.com/devuaka/celchat/releases)).
+iPhone: add the web app to your home screen, or sideload the `.ipa` from Releases (see
+[docs/IPHONE.md](docs/IPHONE.md)).
 
 > **Status: working alpha.** Everything listed below is implemented and exercised by unit tests and
 > two-browser end-to-end tests (one against a local hub, one against the public brokers the website
@@ -142,6 +144,7 @@ client/   React app: core/ (identity, storage, WebRTC, sync, files, voice, trans
 hub/      optional coordination server: signaling, presence, sealed mailbox, directory, caches, GIF proxy
 keeper/   optional archive peer
 desktop/  Electron shell for the Windows/macOS/Linux app
+ios/      Capacitor iPhone/iPad app (built on GitHub's Macs, see docs/IPHONE.md)
 tests/    unit tests and the e2e suites
 docs/     ARCHITECTURE.md (protocol + data model), SELF_HOSTING.md
 ```

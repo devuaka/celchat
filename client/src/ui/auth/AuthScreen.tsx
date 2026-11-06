@@ -6,13 +6,70 @@ import {
   validatePassword, validateUsername, normalizeUsername, type Session, type BackupFile,
 } from '../../core/identity';
 import type { AccountRecord } from '../../core/db';
+import { googleEnabled, type GoogleUser } from '../../core/google';
+import { startGoogleSignIn, createGoogleAccount } from '../../core/googleAccount';
 
-type Mode = 'pick' | 'unlock' | 'create' | 'import';
+type Mode = 'pick' | 'unlock' | 'create' | 'import' | 'google-new';
+
+/** The official-looking "G" (four colours), drawn inline so nothing loads from Google. */
+function GoogleG({ size = 18 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden>
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+      <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+      <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+    </svg>
+  );
+}
+
+function GoogleButton({ onSession, onNew, label = 'Continue with Google' }: { onSession: (s: Session) => void; onNew: (token: string, user: GoogleUser) => void; label?: string }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  if (!googleEnabled()) return null;
+  return (
+    <>
+      <button
+        type="button"
+        className={cls('google-btn', busy && 'busy')}
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setErr(null);
+          try {
+            const r = await startGoogleSignIn();
+            if (r.kind === 'session') onSession(r.session);
+            else onNew(r.token, r.user);
+          } catch (e) {
+            setErr((e as Error).message);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? <span className="spinner" /> : <GoogleG />}
+        {busy ? 'Waiting for Google...' : label}
+      </button>
+      {err && <div className="field-error">{err}</div>}
+    </>
+  );
+}
+
+const usernameFromEmail = (email: string) =>
+  normalizeUsername(email.split('@')[0] ?? '')
+    .replace(/[^a-z0-9_.]/g, '')
+    .slice(0, 32)
+    .padEnd(2, '0');
 
 export function AuthScreen({ onSession }: { onSession: (s: Session, restore?: unknown) => void }) {
   const accounts = useStore((s) => s.accounts);
   const [mode, setMode] = useState<Mode>(accounts.length ? 'pick' : 'create');
   const [picked, setPicked] = useState<AccountRecord | null>(null);
+  const [gNew, setGNew] = useState<{ token: string; user: GoogleUser } | null>(null);
+  const onGoogleNew = (token: string, user: GoogleUser) => {
+    setGNew({ token, user });
+    setMode('google-new');
+  };
   useEffect(() => {
     if (!accounts.length && mode === 'pick') setMode('create');
   }, [accounts.length, mode]);
@@ -41,10 +98,14 @@ export function AuthScreen({ onSession }: { onSession: (s: Session, restore?: un
             }}
             onCreate={() => setMode('create')}
             onImport={() => setMode('import')}
+            google={<GoogleButton onSession={onSession} onNew={onGoogleNew} />}
           />
         )}
-        {mode === 'unlock' && picked && <Unlock account={picked} onBack={() => setMode('pick')} onSession={onSession} />}
-        {mode === 'create' && <Create onBack={accounts.length ? () => setMode('pick') : undefined} onImport={() => setMode('import')} onSession={onSession} />}
+        {mode === 'unlock' && picked && <Unlock account={picked} onBack={() => setMode('pick')} onSession={onSession} google={<GoogleButton onSession={onSession} onNew={onGoogleNew} />} />}
+        {mode === 'create' && (
+          <Create onBack={accounts.length ? () => setMode('pick') : undefined} onImport={() => setMode('import')} onSession={onSession} google={<GoogleButton onSession={onSession} onNew={onGoogleNew} />} />
+        )}
+        {mode === 'google-new' && gNew && <GoogleNew token={gNew.token} user={gNew.user} onBack={() => setMode(accounts.length ? 'pick' : 'create')} onSession={onSession} />}
         {mode === 'import' && <Import onBack={() => setMode(accounts.length ? 'pick' : 'create')} onSession={onSession} />}
       </div>
       <div className="auth-foot">
@@ -54,7 +115,7 @@ export function AuthScreen({ onSession }: { onSession: (s: Session, restore?: un
   );
 }
 
-function AccountPicker({ accounts, onPick, onCreate, onImport }: { accounts: AccountRecord[]; onPick: (a: AccountRecord) => void; onCreate: () => void; onImport: () => void }) {
+function AccountPicker({ accounts, onPick, onCreate, onImport, google }: { accounts: AccountRecord[]; onPick: (a: AccountRecord) => void; onCreate: () => void; onImport: () => void; google: React.ReactNode }) {
   return (
     <div className="auth-body">
       <h2>Welcome back</h2>
@@ -67,7 +128,10 @@ function AccountPicker({ accounts, onPick, onCreate, onImport }: { accounts: Acc
               </span>
               <span className="acct-names">
                 <b>{a.displayName || a.username}</b>
-                <span>@{a.username}</span>
+                <span>
+                  @{a.username}
+                  {a.google && <span className="acct-google"> · {a.google.email}</span>}
+                </span>
               </span>
               <I.right size={18} />
             </button>
@@ -86,6 +150,7 @@ function AccountPicker({ accounts, onPick, onCreate, onImport }: { accounts: Acc
           </div>
         ))}
       </div>
+      {google}
       <div className="auth-row">
         <Button kind="ghost" onClick={onCreate}>
           <I.plus size={16} /> New account
@@ -98,11 +163,22 @@ function AccountPicker({ accounts, onPick, onCreate, onImport }: { accounts: Acc
   );
 }
 
-function Unlock({ account, onBack, onSession }: { account: AccountRecord; onBack: () => void; onSession: (s: Session) => void }) {
+function Unlock({ account, onBack, onSession, google }: { account: AccountRecord; onBack: () => void; onSession: (s: Session) => void; google: React.ReactNode }) {
   const [pw, setPw] = useState('');
   const [stay, setStay] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  if (account.noPassword)
+    return (
+      <div className="auth-body">
+        <button type="button" className="link-back" onClick={onBack}>
+          <I.back size={16} /> Accounts
+        </button>
+        <h2>Sign in to @{account.username}</h2>
+        <p className="muted small">This account signs in with Google{account.google ? ` (${account.google.email})` : ''}.</p>
+        {google}
+      </div>
+    );
   return (
     <form
       className="auth-body"
@@ -129,11 +205,70 @@ function Unlock({ account, onBack, onSession }: { account: AccountRecord; onBack
       <Button type="submit" busy={busy} disabled={!pw}>
         Unlock
       </Button>
+      {account.google && googleEnabled() && (
+        <>
+          <div className="auth-or">
+            <span>or</span>
+          </div>
+          {google}
+        </>
+      )}
     </form>
   );
 }
 
-function Create({ onBack, onImport, onSession }: { onBack?: () => void; onImport: () => void; onSession: (s: Session) => void }) {
+function GoogleNew({ token, user, onBack, onSession }: { token: string; user: GoogleUser; onBack: () => void; onSession: (s: Session) => void }) {
+  const [username, setUsername] = useState(() => usernameFromEmail(user.email));
+  const [display, setDisplay] = useState(user.name.slice(0, 32));
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const u = normalizeUsername(username);
+  const uErr = username ? validateUsername(u) : null;
+  return (
+    <form
+      className="auth-body"
+      onSubmit={async (e) => {
+        e.preventDefault();
+        const ue = validateUsername(u);
+        if (ue) return setErr(ue);
+        setBusy(true);
+        setErr(null);
+        try {
+          onSession(await createGoogleAccount(token, user, u, display.trim().slice(0, 32)));
+        } catch (e2) {
+          setErr((e2 as Error).message);
+          setBusy(false);
+        }
+      }}
+    >
+      <button type="button" className="link-back" onClick={onBack}>
+        <I.back size={16} /> Back
+      </button>
+      <h2>Welcome to CelChat</h2>
+      <p className="muted small">
+        <GoogleG size={14} /> Signed in as <b>{user.email}</b>. Pick a username: this is how people find you. Your account will be kept in your own Google Drive, so signing in with this Google account works
+        on any device.
+      </p>
+      <div className="grid2">
+        <Field label="Username" error={uErr} hint="Lowercase, unique on your hub">
+          <div className="input-prefix">
+            <span>@</span>
+            <input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus autoComplete="username" spellCheck={false} maxLength={32} />
+          </div>
+        </Field>
+        <Field label="Display name" hint="Anything you like">
+          <input value={display} onChange={(e) => setDisplay(e.target.value)} maxLength={32} />
+        </Field>
+      </div>
+      {err && <div className="field-error">{err}</div>}
+      <Button type="submit" busy={busy}>
+        Create account
+      </Button>
+    </form>
+  );
+}
+
+function Create({ onBack, onImport, onSession, google }: { onBack?: () => void; onImport: () => void; onSession: (s: Session) => void; google: React.ReactNode }) {
   const [username, setUsername] = useState('');
   const [display, setDisplay] = useState('');
   const [pw, setPw] = useState('');
@@ -169,6 +304,14 @@ function Create({ onBack, onImport, onSession }: { onBack?: () => void; onImport
         </button>
       )}
       <h2>Create your account</h2>
+      {googleEnabled() && (
+        <>
+          {google}
+          <div className="auth-or">
+            <span>or make a password account</span>
+          </div>
+        </>
+      )}
       <div className="grid2">
         <Field label="Username" error={uErr} hint="Lowercase, unique on your hub">
           <div className="input-prefix">

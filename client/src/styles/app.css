@@ -200,6 +200,15 @@ code, .mono { font-family: var(--font-mono); }
 .auth-row { display: flex; gap: 8px; margin-top: 12px; }
 .auth-row .btn { flex: 1; }
 .auth-note { margin-top: 12px; font-size: 0.82em; color: var(--text3); }
+/* Google button follows Google's branding: white, the four-colour G, dark text */
+.google-btn { width: 100%; height: 44px; display: flex; align-items: center; justify-content: center; gap: 10px; border-radius: 10px; background: #fff; color: #1f1f1f; font: 600 0.95rem var(--font-ui); border: 1px solid #dadce0; margin: 6px 0 4px; transition: background var(--dur), box-shadow var(--dur); }
+.google-btn:hover:not(:disabled) { background: #f8fafd; box-shadow: 0 1px 3px rgb(0 0 0 / 0.25); }
+.google-btn:disabled { opacity: 0.8; cursor: progress; }
+.google-btn .spinner { border-color: #c4c7c5; border-top-color: #1a73e8; }
+.auth-or { display: flex; align-items: center; gap: 10px; margin: 12px 0; color: var(--text3); font-size: 0.8em; }
+.auth-or::before, .auth-or::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+.acct-google { color: var(--text3); }
+.google-btn-inline { width: auto; padding: 0 18px; display: inline-flex; }
 .auth-foot { position: relative; margin-top: 18px; font-size: 0.8em; color: var(--text3); text-align: center; max-width: 520px; }
 .link-back { display: inline-flex; align-items: center; gap: 4px; color: var(--text2); font-size: 0.88em; align-self: flex-start; }
 .acct-list { display: flex; flex-direction: column; gap: 8px; }

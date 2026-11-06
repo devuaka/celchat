@@ -97,8 +97,15 @@ const stamp = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
 if (process.env.SKIP_SOURCE !== '1') {
   // .github is skipped: pushing workflow files needs a token with the `workflow` scope.
-  const skipNames = new Set(['node_modules', 'dist', 'site', 'release', 'data', '.github', '.claude', '.env', '.env.local', 'test-accounts.json', '.profiles', 'artifacts']);
-  const src = walk('.', (n) => skipNames.has(n) || n.endsWith('.log') || n.endsWith('.tsbuildinfo') || n.endsWith('.sqlite') || n === 'identity.json');
+  // .github (the iPhone build) is pushed only when the token has the `workflow` scope:
+  //   gh auth refresh -h github.com -s workflow
+  const canWorkflows = /workflow/.test(execSync('gh auth status 2>&1', { encoding: 'utf8' }));
+  if (!canWorkflows) console.log('  (skipping .github: run "gh auth refresh -h github.com -s workflow" to publish the iPhone build)');
+  const skipNames = new Set(['node_modules', 'dist', 'site', 'release', 'data', '.claude', '.env', '.env.local', 'test-accounts.json', '.profiles', 'artifacts', 'build', 'DerivedData', 'xcuserdata', 'Pods']);
+  if (!canWorkflows) skipNames.add('.github');
+  // files the iOS project generates on `npx cap sync` (same list as ios/.gitignore)
+  const iosGenerated = /^ios[\\/](capacitor-cordova-ios-plugins|App[\\/]App[\\/](public|capacitor\.config\.json|config\.xml))$/;
+  const src = walk('.', (n, full) => skipNames.has(n) || iosGenerated.test(full) || n.endsWith('.log') || n.endsWith('.tsbuildinfo') || n.endsWith('.sqlite') || n === 'identity.json');
   pushTree('main', '.', src, [], `CelChat ${version} source (${stamp})`);
 }
 

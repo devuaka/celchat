@@ -1,0 +1,14 @@
+{
+  "appId": "app.celchat.mobile",
+  "appName": "CelChat",
+  "webDir": "dist",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0b1016",
+    "limitsNavigationsToAppBoundDomains": false,
+    "allowsLinkPreview": false
+  },
+  "server": {
+    "iosScheme": "capacitor"
+  }
+}

@@ -32,7 +32,7 @@ declare global {
   interface Window {
     celDesktop?: {
       setBadge: (mentions: number, any: boolean) => void;
-      onCommand: (cb: (cmd: { type: string; link?: string }) => void) => () => void;
+      onCommand: (cb: (cmd: { type: string; link?: string; hash?: string }) => void) => () => void;
       info: () => Promise<{ version: string; platform: string }>;
     };
   }

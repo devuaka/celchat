@@ -43,6 +43,12 @@ if (!app.requestSingleInstanceLock()) {
 app.setAsDefaultProtocolClient('celchat');
 
 function sendLink(link) {
+  // celchat://oauth#... : Google sign-in finished in the system browser (see client/src/core/google.ts)
+  if (link.startsWith('celchat://oauth') && win) {
+    const hash = link.slice(link.indexOf('#') + 1);
+    if (hash && hash.length < 8192) win.webContents.send('cel:command', { type: 'oauth', hash });
+    return;
+  }
   // celchat://join/<community>/<code>
   const m = /celchat:\/\/join\/([0-9a-f]{64})\/([A-Za-z0-9]{6,16})/.exec(link);
   if (m && win) win.webContents.send('cel:command', { type: 'join', link: `${m[1]}/${m[2]}` });

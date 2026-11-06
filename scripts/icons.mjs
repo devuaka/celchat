@@ -1,7 +1,7 @@
 // Renders client/public/icon.svg to the PNG sizes app stores and installers need.
 //   node scripts/icons.mjs
 import { chromium } from 'playwright-core';
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -27,4 +27,21 @@ for (const s of [16, 32, 48, 64, 128, 192, 256, 512]) await render(s, `icon-${s}
 await render(512, 'maskable-512.png', { maskable: true });
 await render(192, 'maskable-192.png', { maskable: true });
 await render(180, 'apple-touch-icon.png', { maskable: true });
+
+// iOS app (Capacitor): a square, opaque 1024 icon (iOS rounds the corners itself) and splash screens
+const ios = path.join(root, 'ios/App/App/Assets.xcassets');
+if (existsSync(ios)) {
+  const square = svg.replace(/<rect([^>]*?)rx="\d+"/, '<rect$1rx="0"');
+  await page.setViewportSize({ width: 1024, height: 1024 });
+  await page.setContent(`<html><body style="margin:0;background:#0f1820">${square.replace('<svg ', '<svg width="1024" height="1024" ')}</body></html>`);
+  writeFileSync(path.join(ios, 'AppIcon.appiconset/AppIcon-512@2x.png'), await page.screenshot({ type: 'png' }));
+  console.log('wrote iOS AppIcon');
+  // splash: the mark small and centred on the app background (2732 covers every iPhone and iPad)
+  const mark = svg.replace(/<rect[^>]*\/>/, '');
+  await page.setViewportSize({ width: 2732, height: 2732 });
+  await page.setContent(`<html><body style="margin:0;width:2732px;height:2732px;display:grid;place-items:center;background:#0b1016">${mark.replace('<svg ', '<svg width="520" height="520" ')}</body></html>`);
+  const splash = await page.screenshot({ type: 'png' });
+  for (const f of readdirSync(path.join(ios, 'Splash.imageset')).filter((f) => f.endsWith('.png'))) writeFileSync(path.join(ios, 'Splash.imageset', f), splash);
+  console.log('wrote iOS splash');
+}
 await browser.close();

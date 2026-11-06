@@ -17,6 +17,10 @@ export interface AccountRecord {
   vault: { salt: string; iter: number; ct: string };
   /** "stay signed in": seed wrapped by a non-extractable device key */
   wrapped?: { key: CryptoKey; ct: string };
+  /** signed in with Google: the key is also kept in that Google account's Drive app folder */
+  google?: { email: string; sub: string };
+  /** the password vault holds a random password (Google-only account): unlock with Google instead */
+  noPassword?: boolean;
 }
 
 interface AccountsDB extends DBSchema {

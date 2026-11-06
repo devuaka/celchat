@@ -39,6 +39,8 @@ type TopicMeta =
   | { kind: 'call'; callId: string; c: string };
 
 const RANK: Record<Presence, number> = { online: 3, dnd: 2, idle: 1, invisible: 0 };
+/** where invite links point when CelChat runs as an app (override with VITE_PUBLIC_APP_URL for your own copy) */
+const PUBLIC_APP_URL: string = import.meta.env.VITE_PUBLIC_APP_URL || 'https://devuaka.github.io/celchat/app/';
 const GOSSIP_DEGREE = 6;
 
 export interface ChannelRef {
@@ -1387,7 +1389,10 @@ export class CelApp {
   }
 
   inviteLink(c: string, code: string) {
-    return `${location.origin}${location.pathname}#/join/${c}/${code}`;
+    // inside the desktop (app://) or iPhone (capacitor://) app our own address means nothing to others:
+    // invites point at the public web app instead, which anyone can open
+    const web = /^https?:$/.test(location.protocol) ? `${location.origin}${location.pathname}` : PUBLIC_APP_URL;
+    return `${web}#/join/${c}/${code}`;
   }
 
   parseInvite(input: string): { c: string; code: string } | null {
