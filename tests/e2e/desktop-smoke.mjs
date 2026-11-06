@@ -66,6 +66,16 @@ try {
       await page.locator('.play-compose input').press('Enter');
       await page.locator('.play-msg .msg-body', { hasText: 'Pong!' }).waitFor({ timeout: 10000 });
       console.log('PASS desktop app: a sandboxed bot runs and answers /ping');
+      // CELBOT=path/to/file.celbot also imports a bot file through the UI (it must keep its avatar)
+      if (process.env.CELBOT) {
+        await page.locator('.settings-tab', { hasText: 'All bots' }).click();
+        const chooser = page.waitForEvent('filechooser');
+        await page.getByRole('button', { name: /Import bot/ }).click();
+        await (await chooser).setFiles(path.resolve(process.env.CELBOT));
+        await page.getByRole('button', { name: 'Import', exact: true }).click();
+        await page.locator('.bot-nav-head').waitFor({ timeout: 15000 });
+        console.log('PASS desktop app: imported', (await page.locator('.bot-nav-name').innerText()).trim());
+      }
     } catch (e) {
       ok = false;
       console.log('FAIL bot in desktop app:', e.message.split('\n')[0]);

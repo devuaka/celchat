@@ -1,7 +1,7 @@
 {
   "name": "celchat",
   "private": true,
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "CelChat: a free, P2P-first, customizable community chat app",
   "type": "module",
   "license": "MIT",

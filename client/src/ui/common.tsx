@@ -73,7 +73,7 @@ export function Avatar({ pub, size = 40, status, speaking, card: cardProp, onCli
   const still = useStillFrame(isGif && !autoplay && !hover ? url : null);
   return (
     <span
-      className={cls('avatar', speaking && 'speaking', className)}
+      className={cls('avatar', url && 'has-img', speaking && 'speaking', className)}
       style={(size ? { width: size, height: size, '--hue': hue } : { '--hue': hue }) as unknown as CSSProperties}
       onClick={onClick}
       onMouseEnter={() => setHover(true)}
@@ -113,7 +113,7 @@ export function CommunityIcon({ c, size = 48, name, icon }: { c: string; size?: 
     .toUpperCase();
   const hue = parseInt(c.slice(0, 4), 16) % 360;
   return (
-    <span className="cicon" style={{ width: size, height: size, '--hue': hue } as CSSProperties}>
+    <span className={cls('cicon', url && 'has-img')} style={{ width: size, height: size, '--hue': hue } as CSSProperties}>
       {url ? <img src={url} alt="" draggable={false} /> : <span style={{ fontSize: Math.max(11, size / (initials.length > 2 ? 3.2 : 2.6)) }}>{initials || '?'}</span>}
     </span>
   );
