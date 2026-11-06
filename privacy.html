@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0b1016" />
+    <title>Privacy policy · CelChat</title>
+    <link rel="icon" href="./icon.svg" type="image/svg+xml" />
+    <style>
+      :root { --bg: #0b1016; --border: #ffffff14; --text: #e7eef4; --text2: #9fb0c0; --text3: #64788b; --accent: #5fd3b3; --font: 'Plus Jakarta Sans', 'Segoe UI Variable Text', 'Segoe UI', system-ui, -apple-system, sans-serif; }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.7 var(--font); -webkit-font-smoothing: antialiased; }
+      main { width: min(760px, calc(100% - 40px)); margin: 0 auto; padding: 40px 0 80px; }
+      a { color: var(--accent); }
+      .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 800; font-size: 1.1rem; text-decoration: none; color: var(--text); }
+      .brand img { width: 28px; height: 28px; }
+      h1 { font-size: 2.2rem; letter-spacing: -0.03em; margin: 34px 0 4px; }
+      h2 { font-size: 1.2rem; margin: 34px 0 6px; }
+      p, li { color: var(--text2); }
+      .date { color: var(--text3); font-size: 0.9rem; margin: 0 0 24px; }
+      code { font-size: 0.9em; background: rgb(255 255 255 / 0.06); padding: 1px 5px; border-radius: 5px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <a class="brand" href="./"><img src="./icon.svg" alt="" />CelChat</a>
+      <h1>Privacy policy</h1>
+      <p class="date">Last updated 6 November 2026</p>
+
+      <p>CelChat is a free, open-source, peer-to-peer chat app. There is no CelChat company server that stores your messages, and nobody behind CelChat can read them. This page says exactly what data the app handles and where it goes.</p>
+
+      <h2>What stays on your device</h2>
+      <p>Your account key, your messages, your communities, your settings and any bots you make are stored in your own browser or app storage. Your account key is encrypted with your password (or, for Google sign-in accounts, kept as described below).</p>
+
+      <h2>What travels between people</h2>
+      <p>Messages, voice, video and files go directly between the devices of the people in a conversation, or through public relay servers (MQTT brokers run by EMQX and HiveMQ) when a direct link is not possible. Everything sent through a relay is encrypted end to end; the relay operators only see encrypted data. Communities can also choose to run their own hub or archive peer; those are run by the community, not by CelChat.</p>
+
+      <h2>Sign in with Google (optional)</h2>
+      <p>If you choose "Continue with Google", CelChat asks Google for:</p>
+      <ul>
+        <li>your name, email address and Google account ID (scopes <code>openid</code>, <code>email</code>, <code>profile</code>), used only to label your account on this device and to suggest a username;</li>
+        <li>access to CelChat's own hidden app-data folder in your Google Drive (scope <code>drive.appdata</code>). CelChat stores one file there, <code>celchat-account.json</code>, holding your CelChat account key and username, so you can sign in to the same account on your other devices. CelChat cannot see any of your other Drive files.</li>
+      </ul>
+      <p>The Google sign-in token is used straight from your device and is never stored or sent to anyone else. Your Google data is not sold, shared, used for ads, or used to train AI models. Unlinking Google in Settings, My account deletes the file from your Drive. You can also revoke CelChat's access at any time at <a href="https://myaccount.google.com/permissions" rel="noopener">myaccount.google.com/permissions</a>.</p>
+      <p>CelChat's use and transfer of information received from Google APIs adheres to the <a href="https://developers.google.com/terms/api-services-user-data-policy" rel="noopener">Google API Services User Data Policy</a>, including the Limited Use requirements.</p>
+
+      <h2>Other services the app talks to</h2>
+      <ul>
+        <li><b>GIF search</b>: your search words go to the GIF provider you use (GIPHY by default).</li>
+        <li><b>Link previews and images</b> in messages are loaded from the sites they point to.</li>
+        <li><b>Updates and downloads</b> come from GitHub.</li>
+      </ul>
+
+      <h2>What CelChat does not do</h2>
+      <p>No analytics, no tracking, no ads, no selling of data, and no accounts on a CelChat server.</p>
+
+      <h2>Deleting your data</h2>
+      <p>Sign out and remove the account in the app to delete it from a device. Messages you sent may remain on the devices of the people you sent them to, like any chat. Unlink Google to delete the Drive copy of your key.</p>
+
+      <h2>Contact</h2>
+      <p>Questions: <a href="https://github.com/devuaka/celchat/issues" rel="noopener">open an issue on GitHub</a>. The source code is public, so you can check every claim on this page.</p>
+    </main>
+  </body>
+</html>
