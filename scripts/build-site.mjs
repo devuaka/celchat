@@ -39,6 +39,7 @@ const html = readFileSync(path.join(root, 'landing', 'index.html'), 'utf8')
   .replaceAll('{{WIN_URL}}', winUrl)
   .replaceAll('{{WIN_SIZE}}', winSize);
 writeFileSync(path.join(site, 'index.html'), html);
+cpSync(path.join(root, 'landing', 'privacy.html'), path.join(site, 'privacy.html'));
 
 writeFileSync(
   path.join(site, 'sw.js'),

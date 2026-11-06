@@ -206,7 +206,7 @@
             <h2>Web</h2>
             <p>Open CelChat right in your browser, nothing to install. Works on Windows, Mac, Linux, Android and iPhone, and your browser can install it as an app.</p>
             <a class="btn btn-primary btn-lg" href="./app/">Open web app →</a>
-            <span class="meta">Chrome, Edge, Firefox or Safari · same account on every device with a backup file</span>
+            <span class="meta">Chrome, Edge, Firefox or Safari · same account on every device with Google sign-in or a backup file</span>
           </div>
           <div class="choice" id="choice-win">
             <span class="tag">Recommended for you</span>
@@ -371,7 +371,7 @@
         <div class="kicker">How it works</div>
         <h2 class="sec">Three steps, no email, no phone number</h2>
         <div class="steps">
-          <div class="step"><h3>Create your account</h3><p>Pick a name and a password. Your identity is a key pair created on your device; the password encrypts it there. Save the recovery key.</p></div>
+          <div class="step"><h3>Create your account</h3><p>Continue with Google, or pick a name and a password. Your identity is a key pair created on your device; the password encrypts it there. Save the recovery key.</p></div>
           <div class="step"><h3>Start a community</h3><p>Create one in a click, add channels and roles, and send your friends an invite link.</p></div>
           <div class="step"><h3>Talk directly</h3><p>Your devices connect to each other. Text, files, voice and video flow between you, not through a company.</p></div>
         </div>
@@ -385,7 +385,7 @@
         <div class="faq">
           <details><summary>Is it really free?</summary><p>Yes. There is no paid tier and nothing to unlock. CelChat has no servers to pay for: the website is static, peers talk to each other, and introductions go through free public brokers. The code is open source (MIT).</p></details>
           <details><summary>Where are my messages stored?</summary><p>On the devices of the people in the conversation. A community's history is copied between its members as they come online. If nobody who has a message is online, newcomers wait until someone is, unless the community runs an archive peer.</p></details>
-          <details><summary>Do I need an email or phone number?</summary><p>No. Your account is a key made on your device. Keep the recovery key or a backup file: there is no company that can reset your password.</p></details>
+          <details><summary>Do I need an email or phone number?</summary><p>No. Your account is a key made on your device. Keep the recovery key or a backup file: there is no company that can reset your password. If you would rather not juggle passwords, you can use <b>Continue with Google</b> instead: CelChat keeps your account key in a hidden CelChat-only folder of your own Google Drive, so signing in with Google on any device opens the same account. CelChat never sees your other Drive files (<a href="./privacy.html">privacy policy</a>).</p></details>
           <details><summary>Is it private?</summary><p>DMs are end-to-end encrypted. Calls and files go directly between devices when your networks allow it, otherwise through an encrypted relay. The public brokers only see encrypted messages, hashed topic names, timing and IP addresses. It has not had a professional security audit yet.</p></details>
           <details><summary>Why does Windows warn about the installer?</summary><p>Code-signing certificates cost money and this is a free project, so the installer is not signed yet. Windows SmartScreen then shows "Windows protected your PC": choose More info, then Run anyway. You can also just use the web app.</p></details>
           <details><summary>Can I run my own server?</summary><p>You do not need one, but you can: the small hub, archive peers, TURN for strict networks and your own copy of this website are all in the repository, with a Docker setup.</p></details>
@@ -416,6 +416,7 @@
         <a href="https://github.com/{{REPO}}/releases" rel="noopener">Releases</a>
         <a href="https://github.com/{{REPO}}" rel="noopener">Source code</a>
         <a href="https://github.com/{{REPO}}/issues" rel="noopener">Report a bug</a>
+        <a href="./privacy.html">Privacy</a>
       </div>
     </footer>
 

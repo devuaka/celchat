@@ -7,6 +7,14 @@ app) by keeping the account key in their own Google Drive, in a hidden folder on
 It is optional. A build without a Google client id simply hides the button; password accounts,
 recovery keys and backup files keep working either way.
 
+## The official client
+
+The published CelChat uses Google Cloud project `cool-arch-513909-e6` ("CellChat", owner
+coolfamesguy@gmail.com), app **In production**, Web client "CelChat web" whose id is in
+`client/src/core/google.ts`. Home page and privacy policy: `https://devuaka.github.io/celchat/` and
+`.../privacy.html` (source `landing/privacy.html`). Do not upload a logo on the Branding page: that
+forces Google verification. Forks should make their own client with the steps below.
+
 ## One-time setup (about 10 minutes, free)
 
 1. Open https://console.cloud.google.com and create a project (for example "CelChat").

@@ -12,7 +12,7 @@
 import { fromB64, toB64, randomHex } from '@shared/bytes';
 
 /** CelChat's Google OAuth client (public, not a secret). Set up in docs/GOOGLE_SIGNIN.md. */
-const DEFAULT_CLIENT_ID = '';
+const DEFAULT_CLIENT_ID = '11381899687-75jhm39ledn68jfssdep434emk5p069d.apps.googleusercontent.com';
 const CLIENT_ID: string = import.meta.env.VITE_GOOGLE_CLIENT_ID || DEFAULT_CLIENT_ID;
 const PUBLIC_APP_URL: string = import.meta.env.VITE_PUBLIC_APP_URL || 'https://devuaka.github.io/celchat/app/';
 const SCOPES = 'openid email profile https://www.googleapis.com/auth/drive.appdata';
